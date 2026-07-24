@@ -18,7 +18,10 @@ def build(
 ) -> dict[str, object]:
     if clean:
         shutil.rmtree(generated_dir, ignore_errors=True)
-        shutil.rmtree(graph_dir, ignore_errors=True)
+        # Keep existing graph archives long enough for render_graph() to avoid
+        # rewriting semantically identical gzip payloads with different zlib
+        # bitstreams. Unexpected files are pruned by render_graph().
+        graph_dir.mkdir(parents=True, exist_ok=True)
     paths = input_files(root)
     graph = scan_repository(root, paths)
     graph_artifacts = render_graph(graph, graph_dir)

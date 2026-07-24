@@ -1,9 +1,10 @@
 {
-  "generator_version": "1.0.0",
+  "generator_version": "1.0.1",
   "graph": {
+    "artifact_digest_basis": "sha256-uncompressed-canonical-jsonl",
     "artifacts": {
-      "edges.jsonl.gz": "25b731ee641c7649dd994e896f1fd5785eb7166eacf9ac6aef7114bf0b9610ff",
-      "nodes.jsonl.gz": "5f0f1a9eaecbdbc031220c5e2a6e57599a30fd5013ddc9e68fa9ae76410e59f7"
+      "edges.jsonl.gz": "265e22aae6a3413ff16af3a1e45631d180e3fa0e1fc68d462e01f51fa18eaa39",
+      "nodes.jsonl.gz": "f14b78b727d9ca4b1d995b66a25532cf2fbd7d770e0204dbf2b5a5441f0a2f39"
     },
     "edge_count": 101,
     "node_count": 30
@@ -16,7 +17,7 @@
   "packages": [
     "payment_service"
   ],
-  "schema_version": 1,
+  "schema_version": 2,
   "source_digest": "2a555e804256f7a66cf8033228fb72a3694e217220a8a9be4828eb5b2a154d84",
   "source_files": {
     "src/payment_service/__init__.py": "d6314788a21bdba844a700ecd72971a131453c0f54ffdc5a1677bd33cf118d32",

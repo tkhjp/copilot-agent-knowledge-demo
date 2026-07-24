@@ -8,6 +8,7 @@ demo: check context query
 
 test:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m unittest discover -s tests -v
+	$(PYTHON) -m unittest discover -s tools/knowledge/tests -v
 
 knowledge:
 	$(PYTHON) -m tools.knowledge.build
