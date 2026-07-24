@@ -8,22 +8,12 @@ on:
     paths:
       - "docs/agent-knowledge/**"
       - "tools/knowledge/export_wiki.py"
-      - ".github/workflows/mirror-wiki.yml"
-      - "docs/wiki.md"
-  pull_request:
-    branches:
-      - develop
-    paths:
-      - "docs/agent-knowledge/**"
-      - "tools/knowledge/export_wiki.py"
-      - ".github/workflows/mirror-wiki.yml"
-      - "docs/wiki.md"
 
 permissions:
   contents: write
 
 concurrency:
-  group: mirror-agent-knowledge-wiki-${{ github.ref }}
+  group: mirror-agent-knowledge-wiki
   cancel-in-progress: true
 
 jobs:
@@ -41,7 +31,7 @@ jobs:
       - name: Export Wiki pages
         run: make wiki-export
 
-      - name: Initialize or clone Wiki repository
+      - name: Clone initialized Wiki repository
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -49,14 +39,9 @@ jobs:
           set -euo pipefail
           wiki_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
 
-          if git clone "$wiki_url" wiki; then
-            echo "Existing Wiki repository cloned"
-          else
-            echo "No initialized Wiki repository was available; creating the first Wiki commit"
-            rm -rf wiki
-            mkdir wiki
-            git -C wiki init -b master
-            git -C wiki remote add origin "$wiki_url"
+          if ! git clone "$wiki_url" wiki; then
+            echo "::error title=Wiki not initialized::Create the first page at https://github.com/${GITHUB_REPOSITORY}/wiki, then rerun this workflow. GitHub does not create the .wiki.git repository until the first page is saved."
+            exit 1
           fi
 
       - name: Publish Wiki mirror
@@ -77,34 +62,4 @@ jobs:
           fi
 
           git -C wiki commit -m "mirror agent knowledge from ${GITHUB_SHA}"
-          git -C wiki push --set-upstream origin HEAD:master
-
-      - name: Record successful Wiki initialization
-        if: github.event_name != 'pull_request'
-        shell: bash
-        run: |
-          set -euo pipefail
-          marker=".github/wiki-mirror-initialized.md"
-
-          if [[ -f "$marker" ]]; then
-            echo "Initialization marker already exists"
-            exit 0
-          fi
-
-          cat > "$marker" <<EOF
-          # Wiki mirror initialized
-
-          The `Mirror Knowledge to Wiki` workflow successfully published the repository's Agent Knowledge Pack to:
-
-          <https://github.com/${GITHUB_REPOSITORY}/wiki>
-
-          Initial source commit: `${GITHUB_SHA}`
-
-          The repository knowledge files remain authoritative for agents. The Wiki is the human-facing mirror.
-          EOF
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "$marker"
-          git commit -m "record successful Wiki initialization"
-          git push
+          git -C wiki push origin HEAD:master
