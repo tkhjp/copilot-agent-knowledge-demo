@@ -4,6 +4,7 @@ import filecmp
 import gzip
 import shutil
 import tempfile
+import zlib
 from pathlib import Path
 
 from .build import build
@@ -16,7 +17,7 @@ def _files_equal(expected: Path, actual: Path) -> bool:
             return gzip.decompress(expected.read_bytes()) == gzip.decompress(
                 actual.read_bytes()
             )
-        except (OSError, EOFError):
+        except (OSError, EOFError, zlib.error):
             return False
     return expected.read_bytes() == actual.read_bytes()
 
