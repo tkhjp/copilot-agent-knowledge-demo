@@ -69,3 +69,32 @@ jobs:
 
           git -C wiki commit -m "mirror agent knowledge from ${GITHUB_SHA}"
           git -C wiki push --set-upstream origin HEAD:master
+
+      - name: Record successful Wiki initialization
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker=".github/wiki-mirror-initialized.md"
+
+          if [[ -f "$marker" ]]; then
+            echo "Initialization marker already exists"
+            exit 0
+          fi
+
+          cat > "$marker" <<EOF
+          # Wiki mirror initialized
+
+          The `Mirror Knowledge to Wiki` workflow successfully published the repository's Agent Knowledge Pack to:
+
+          <https://github.com/${GITHUB_REPOSITORY}/wiki>
+
+          Initial source commit: `${GITHUB_SHA}`
+
+          The repository knowledge files remain authoritative for agents. The Wiki is the human-facing mirror.
+          EOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$marker"
+          git commit -m "record successful Wiki initialization"
+          git push
