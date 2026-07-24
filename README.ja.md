@@ -1,6 +1,6 @@
 # Copilot Agent Knowledge Demo
 
-[English README](README.md)
+[English README](README.en.md)
 
 このリポジトリは、テスト生成を対象にした **共有可能・鮮度管理可能・GitHub Copilot から参照可能な知識ループ**の実行デモです。
 
