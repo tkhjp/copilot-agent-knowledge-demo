@@ -20,4 +20,15 @@ jobs:
           python-version: "3.13"
 
       - name: Validate tests and agent knowledge
-        run: make check
+        shell: bash
+        run: |
+          set -o pipefail
+          make check 2>&1 | tee check.log
+
+      - name: Upload validation log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-check-log
+          path: check.log
+          if-no-files-found: error
