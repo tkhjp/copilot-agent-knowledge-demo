@@ -4,6 +4,7 @@ import gzip
 import hashlib
 import json
 import shutil
+import zlib
 from collections import defaultdict
 from pathlib import Path
 
@@ -34,7 +35,7 @@ def write_jsonl_gzip(path: Path, records: list[dict[str, object]]) -> str:
         try:
             if gzip.decompress(path.read_bytes()) == payload:
                 return digest
-        except (OSError, EOFError):
+        except (OSError, EOFError, zlib.error):
             pass
 
     archive = bytearray(gzip.compress(payload, compresslevel=9, mtime=0))
