@@ -2,9 +2,20 @@ name: Mirror Knowledge to Wiki
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - develop
+    paths:
+      - "docs/agent-knowledge/**"
+      - "tools/knowledge/export_wiki.py"
+      - ".github/workflows/mirror-wiki.yml"
 
 permissions:
   contents: write
+
+concurrency:
+  group: mirror-agent-knowledge-wiki
+  cancel-in-progress: true
 
 jobs:
   mirror:
@@ -21,26 +32,40 @@ jobs:
       - name: Export Wiki pages
         run: make wiki-export
 
-      - name: Publish Wiki mirror
+      - name: Initialize or clone Wiki repository
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           wiki_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
-          if ! git clone "$wiki_url" wiki; then
-            echo "Initialize the Wiki with one page in the GitHub UI, then rerun this workflow." >&2
-            exit 1
+
+          if git clone "$wiki_url" wiki; then
+            echo "Existing Wiki repository cloned"
+          else
+            echo "No initialized Wiki repository was available; creating the first Wiki commit"
+            rm -rf wiki
+            mkdir wiki
+            git -C wiki init -b master
+            git -C wiki remote add origin "$wiki_url"
           fi
+
+      - name: Publish Wiki mirror
+        shell: bash
+        run: |
+          set -euo pipefail
+
           find wiki -mindepth 1 -maxdepth 1 -type f -name '*.md' -delete
           cp dist/wiki/*.md wiki/
-          cd wiki
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if git diff --cached --quiet; then
+
+          git -C wiki config user.name "github-actions[bot]"
+          git -C wiki config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C wiki add -A
+
+          if git -C wiki diff --cached --quiet; then
             echo "Wiki already current"
             exit 0
           fi
-          git commit -m "mirror agent knowledge"
-          git push
+
+          git -C wiki commit -m "mirror agent knowledge from ${GITHUB_SHA}"
+          git -C wiki push --set-upstream origin HEAD:master
