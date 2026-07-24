@@ -9,12 +9,21 @@ on:
       - "docs/agent-knowledge/**"
       - "tools/knowledge/export_wiki.py"
       - ".github/workflows/mirror-wiki.yml"
+      - "docs/wiki.md"
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - "docs/agent-knowledge/**"
+      - "tools/knowledge/export_wiki.py"
+      - ".github/workflows/mirror-wiki.yml"
+      - "docs/wiki.md"
 
 permissions:
   contents: write
 
 concurrency:
-  group: mirror-agent-knowledge-wiki
+  group: mirror-agent-knowledge-wiki-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -71,6 +80,7 @@ jobs:
           git -C wiki push --set-upstream origin HEAD:master
 
       - name: Record successful Wiki initialization
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
