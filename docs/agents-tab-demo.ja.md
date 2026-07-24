@@ -269,7 +269,7 @@ Agent: test-generator
 ## 関連資料
 
 - [日本語 README](../README.ja.md)
-- [英語 README](../README.md)
+- [英語 README](../README.en.md)
 - [Architecture](architecture.md)
 - [Wiki 運用ガイド（日本語）](wiki.ja.md)
 - [Prompt examples](../examples/prompts.md)
