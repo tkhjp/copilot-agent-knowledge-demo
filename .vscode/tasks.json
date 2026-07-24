@@ -1,0 +1,26 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Agent Knowledge: Prepare Context",
+      "type": "shell",
+      "command": "python3 -m tools.knowledge.prepare_context",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Agent Knowledge: Query PaymentService.authorize",
+      "type": "shell",
+      "command": "python3 -m tools.knowledge.query_graph --symbol PaymentService.authorize --depth 1",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Agent Knowledge: Validate Demo",
+      "type": "shell",
+      "command": "make check",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    }
+  ]
+}

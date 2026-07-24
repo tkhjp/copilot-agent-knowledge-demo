@@ -1,0 +1,52 @@
+name: Refresh Agent Knowledge
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Regenerate knowledge
+        run: make knowledge
+
+      - name: Run validation
+        run: make check
+
+      - name: Create update pull request when needed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- docs/agent-knowledge/generated artifacts/codegraph; then
+            echo "No knowledge changes"
+            exit 0
+          fi
+
+          branch="automation/refresh-agent-knowledge-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add docs/agent-knowledge/generated artifacts/codegraph
+          git commit -m "refresh agent knowledge"
+          git push --set-upstream origin "$branch"
+          gh pr create \
+            --base "${GITHUB_REF_NAME}" \
+            --head "$branch" \
+            --title "Refresh agent knowledge" \
+            --body "Regenerates the deterministic code graph and Copilot-oriented knowledge projection from the current source tree."

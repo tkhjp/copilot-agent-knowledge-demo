@@ -1,0 +1,29 @@
+{
+  "generator_version": "1.0.0",
+  "graph": {
+    "artifacts": {
+      "edges.jsonl.gz": "25b731ee641c7649dd994e896f1fd5785eb7166eacf9ac6aef7114bf0b9610ff",
+      "nodes.jsonl.gz": "5f0f1a9eaecbdbc031220c5e2a6e57599a30fd5013ddc9e68fa9ae76410e59f7"
+    },
+    "edge_count": 101,
+    "node_count": 30
+  },
+  "knowledge_artifacts": {
+    "modules/payment-service.md": "b624c2be56b1b3692dd7ebe22ec3081d22e7dfb72add213db72983259e410dce",
+    "system-overview.md": "520433f0643fa62b2be75d0cde7f082de4306eaf0c457af4633f3d56d12963cf",
+    "test-impact/payment-service.md": "a3788220904886f9f8d508b833342f62e0d64f97a227637bf869225e69df7819"
+  },
+  "packages": [
+    "payment_service"
+  ],
+  "schema_version": 1,
+  "source_digest": "2a555e804256f7a66cf8033228fb72a3694e217220a8a9be4828eb5b2a154d84",
+  "source_files": {
+    "src/payment_service/__init__.py": "d6314788a21bdba844a700ecd72971a131453c0f54ffdc5a1677bd33cf118d32",
+    "src/payment_service/models.py": "1d8cd6f9e4c2b5ea7b646dda8a74ad5916c9c60ed87c55e265a1da917f9ccd53",
+    "src/payment_service/ports.py": "8e50df62fb5840ab0aa830b9fea6d5409ce8d4eeac90a35ea310fb1db1f94a88",
+    "src/payment_service/service.py": "cd9a2388cb5a3990abd3dd6abd7c4275a9ecb0ad84375667b3363b4270968543",
+    "tests/__init__.py": "55eb9c3766e321350e59b40eda3a53855c7f62eaa8d65e322464cb2a59d4943a",
+    "tests/test_payment_service.py": "46a79690e71e487c6a99c10927885bd9797a045e9bd7120b44ee3ae82651d7f7"
+  }
+}
