@@ -3,6 +3,7 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+import shutil
 from collections import defaultdict
 from pathlib import Path
 
@@ -10,24 +11,63 @@ from .model import Edge, Graph, Node
 from .project import write_json
 
 
-def write_jsonl_gzip(path: Path, records: list[dict[str, object]]) -> None:
-    """Write deterministic gzip-compressed JSON Lines."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    text = "".join(
+def _canonical_jsonl(records: list[dict[str, object]]) -> bytes:
+    return "".join(
         json.dumps(record, sort_keys=True, ensure_ascii=False) + "\n"
         for record in records
-    )
-    path.write_bytes(gzip.compress(text.encode("utf-8"), compresslevel=9, mtime=0))
+    ).encode("utf-8")
+
+
+def write_jsonl_gzip(path: Path, records: list[dict[str, object]]) -> str:
+    """Write JSON Lines as gzip and return the canonical content digest.
+
+    The gzip container is a transport detail: zlib implementations may emit
+    different, valid DEFLATE streams for identical input. The stable identity
+    of a graph artifact is therefore the SHA-256 of its uncompressed canonical
+    JSONL payload.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = _canonical_jsonl(records)
+    digest = hashlib.sha256(payload).hexdigest()
+
+    if path.exists():
+        try:
+            if gzip.decompress(path.read_bytes()) == payload:
+                return digest
+        except (OSError, EOFError):
+            pass
+
+    archive = bytearray(gzip.compress(payload, compresslevel=9, mtime=0))
+    # Python 3.11 and 3.12 may copy a platform-specific OS byte from zlib.
+    # Normalizing it reduces avoidable binary churn, while semantic validation
+    # remains authoritative across zlib versions.
+    if len(archive) >= 10:
+        archive[9] = 255
+    path.write_bytes(bytes(archive))
+    return digest
 
 
 def render_graph(graph: Graph, graph_dir: Path) -> dict[str, str]:
     nodes_path = graph_dir / "nodes.jsonl.gz"
     edges_path = graph_dir / "edges.jsonl.gz"
-    write_jsonl_gzip(nodes_path, [node.to_dict() for node in graph.nodes])
-    write_jsonl_gzip(edges_path, [edge.to_dict() for edge in graph.edges])
+    expected_names = {nodes_path.name, edges_path.name}
+    graph_dir.mkdir(parents=True, exist_ok=True)
+    for child in graph_dir.iterdir():
+        if child.name not in expected_names:
+            if child.is_dir():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+
+    node_digest = write_jsonl_gzip(
+        nodes_path, [node.to_dict() for node in graph.nodes]
+    )
+    edge_digest = write_jsonl_gzip(
+        edges_path, [edge.to_dict() for edge in graph.edges]
+    )
     return {
-        nodes_path.name: _sha256(nodes_path),
-        edges_path.name: _sha256(edges_path),
+        nodes_path.name: node_digest,
+        edges_path.name: edge_digest,
     }
 
 
@@ -72,6 +112,7 @@ def render_knowledge(
         "graph": {
             "node_count": len(graph.nodes),
             "edge_count": len(graph.edges),
+            "artifact_digest_basis": "sha256-uncompressed-canonical-jsonl",
             "artifacts": graph_artifacts,
         },
         "knowledge_artifacts": artifact_digests,
