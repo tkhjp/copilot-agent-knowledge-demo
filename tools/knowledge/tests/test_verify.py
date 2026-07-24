@@ -33,6 +33,35 @@ class GeneratedKnowledgeVerificationTest(unittest.TestCase):
 
             self.assertEqual([], _compare_dirs(expected, actual))
 
+    def test_invalid_gzip_is_reported_as_content_difference(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            expected = root / "expected"
+            actual = root / "actual"
+            expected.mkdir()
+            actual.mkdir()
+            expected_file = expected / "nodes.jsonl.gz"
+            actual_file = actual / "nodes.jsonl.gz"
+            expected_file.write_bytes(b"invalid gzip payload")
+            actual_file.write_bytes(gzip.compress(b'{}\n', mtime=0))
+
+            self.assertEqual(
+                [f"content differs: {expected_file}"],
+                _compare_dirs(expected, actual),
+            )
+
+    def test_invalid_existing_archive_is_rewritten(self) -> None:
+        records = [{"b": 2, "a": 1}]
+        canonical = b'{"a": 1, "b": 2}\n'
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "nodes.jsonl.gz"
+            path.write_bytes(b"invalid gzip payload")
+
+            digest = write_jsonl_gzip(path, records)
+
+            self.assertEqual(hashlib.sha256(canonical).hexdigest(), digest)
+            self.assertEqual(canonical, gzip.decompress(path.read_bytes()))
+
     def test_plain_files_are_compared_by_content_not_shallow_stat(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
