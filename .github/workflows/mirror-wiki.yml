@@ -46,41 +46,57 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          set -euo pipefail
-          wiki_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
+          set -o pipefail
+          {
+            set -euo pipefail
+            wiki_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
 
-          if git clone "$wiki_url" wiki; then
-            echo "Existing Wiki repository cloned"
-          else
-            echo "No initialized Wiki repository was available; creating the first Wiki commit"
-            rm -rf wiki
-            mkdir wiki
-            git -C wiki init -b master
-            git -C wiki remote add origin "$wiki_url"
-          fi
+            if git clone "$wiki_url" wiki; then
+              echo "Existing Wiki repository cloned"
+            else
+              echo "No initialized Wiki repository was available; creating the first Wiki commit"
+              rm -rf wiki
+              mkdir wiki
+              git -C wiki init -b master
+              git -C wiki remote add origin "$wiki_url"
+            fi
+          } 2>&1 | tee wiki-init.log
 
       - name: Publish Wiki mirror
         shell: bash
         run: |
-          set -euo pipefail
+          set -o pipefail
+          {
+            set -euo pipefail
 
-          find wiki -mindepth 1 -maxdepth 1 -type f -name '*.md' -delete
-          cp dist/wiki/*.md wiki/
+            find wiki -mindepth 1 -maxdepth 1 -type f -name '*.md' -delete
+            cp dist/wiki/*.md wiki/
 
-          git -C wiki config user.name "github-actions[bot]"
-          git -C wiki config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git -C wiki add -A
+            git -C wiki config user.name "github-actions[bot]"
+            git -C wiki config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git -C wiki add -A
 
-          if git -C wiki diff --cached --quiet; then
-            echo "Wiki already current"
-            exit 0
-          fi
+            if git -C wiki diff --cached --quiet; then
+              echo "Wiki already current"
+              exit 0
+            fi
 
-          git -C wiki commit -m "mirror agent knowledge from ${GITHUB_SHA}"
-          git -C wiki push --set-upstream origin HEAD:master
+            git -C wiki commit -m "mirror agent knowledge from ${GITHUB_SHA}"
+            git -C wiki push --set-upstream origin HEAD:master
+          } 2>&1 | tee wiki-publish.log
+
+      - name: Upload Wiki diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wiki-mirror-diagnostics
+          path: |
+            wiki-init.log
+            wiki-publish.log
+          if-no-files-found: warn
 
       - name: Record successful Wiki initialization
-        if: github.event_name != 'pull_request'
+        if: success() && github.event_name != 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
