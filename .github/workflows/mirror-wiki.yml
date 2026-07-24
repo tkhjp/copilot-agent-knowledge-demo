@@ -7,6 +7,8 @@ on:
       - develop
     paths:
       - "docs/agent-knowledge/**"
+      - "docs/agents-tab-demo.ja.md"
+      - "docs/wiki.ja.md"
       - "tools/knowledge/export_wiki.py"
 
 permissions:
