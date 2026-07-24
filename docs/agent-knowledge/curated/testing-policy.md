@@ -18,3 +18,10 @@
 5. Add the smallest useful test change.
 6. Run `make test` and `make check`.
 7. Report the exact knowledge files and graph query used.
+
+## Knowledge publication and authority
+
+- Current source code and versioned repository knowledge are authoritative for agents.
+- The GitHub Wiki is a human-facing mirror for browsing, onboarding, and provenance; it is not the primary agent context.
+- Changes to the Agent Knowledge Pack on `develop` are published to the Wiki by the `Mirror Knowledge to Wiki` workflow.
+- Generated Wiki pages must not be edited directly because the next mirror run will replace them.
