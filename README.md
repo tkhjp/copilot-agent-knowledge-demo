@@ -1,10 +1,12 @@
 # Copilot Agent Knowledge Demo
 
-このリポジトリは、テスト生成を対象にした **共有可能・鮮度管理可能・GitHub Copilot から参照可能な Agent Knowledge Loop** の実行デモです。
+このリポジトリは、テスト生成を題材として、**Repository に紐づく共有 Project Knowledge を versioning・review・可視化し、GitHub Copilot Agent から利用するための reference implementation** を提供します。
+
+主な対象は code graph、test-impact metadata、testing policy、domain rule です。単なる Agent デモではなく、authoritative store、derived view、change-control、Agent execution を分離したアーキテクチャを検証します。
 
 ## ドキュメント
 
-- **[共有 Project Knowledge の管理・利用設計（日本語）](docs/shared-project-knowledge-management-design.ja.md)**
+- **[共有 Project Knowledge の管理・利用アーキテクチャ（日本語）](docs/shared-project-knowledge-management-design.ja.md)**
 - **[日本語の詳細 README](README.ja.md)**
 - **[GitHub Agents タブ実行ガイド（日本語）](docs/agents-tab-demo.ja.md)**
 - **[GitHub Wiki 運用ガイド（日本語）](docs/wiki.ja.md)**
@@ -15,34 +17,31 @@
 
 ## この Repository の位置付け
 
-本 Repository は、あるプロジェクトで共有前提となる knowledge（例: code graph）について、主に次の GitHub 機能をどのように組み合わせるかを示す reference implementation です。
-
-- Repository files + Git / Pull Request
-- GitHub Wiki
-- Copilot Spaces
-- Copilot Agent / Session
-- 必要に応じて GitHub Pages または external GraphDB + MCP
-
-基本構成:
+本 Repository は、GitHub の各機能を次の責務に分離して組み合わせます。
 
 ```text
-Repository knowledge files
-        = Source of Truth
+Repository Knowledge Pack
+        = authoritative store / system of record
 
 Git branch / commit / Pull Request / CI
-        = 更新・競合検出・review・承認
+        = change control / validation / conflict detection
 
 GitHub Wiki
-        = 人向けの可視化・確認・feedback 画面
+        = human-facing derived view
 
 Copilot Spaces
-        = Copilot 問答用の curated context
+        = curated context for Copilot interaction
 
-Copilot Agent / Session
-        = knowledge の利用・変更提案・実行履歴
+Copilot Agent
+        = execution and change-proposal layer
+
+Agent Session
+        = execution provenance
 ```
 
-具体的な保存場所、更新方法、conflict 解決、Wiki 同期、Spaces の位置付け、Agent 導入後の workflow は、[共有 Project Knowledge の管理・利用設計](docs/shared-project-knowledge-management-design.ja.md)にまとめています。
+必要に応じて、GitHub Pages を presentation layer、external GraphDB + MCP を large-graph query layer として追加します。
+
+保存場所、Must / Nice-to-Have requirements、artifact classification、consistency model、conflict strategy、Wiki publish、Agent workflow は、[共有 Project Knowledge の管理・利用アーキテクチャ](docs/shared-project-knowledge-management-design.ja.md)にまとめています。
 
 ## 最初に理解すべき点
 
