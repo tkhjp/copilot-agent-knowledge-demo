@@ -1069,3 +1069,152 @@ Repository Knowledge Pack
 - [Using Copilot cloud agent on GitHub](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-on-github)
 - [GitHub Pages documentation](https://docs.github.com/en/pages)
 - [Workflow concurrency](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)
+
+
+建议明确纠正一个可能的误解：
+
+> 不是“GitHub 里完全没有适合放数据的地方”，而是 **GitHub 原生功能没有一个可以直接替代通用共享 GraphDB / Test DB 的数据库服务**。
+> 是否需要数据库、保存什么、如何避免冲突，要按 `code graph`、`test data`、`shared knowledge` 分开判断。
+
+下面这版可以直接回复客户。
+
+---
+
+神子島さん、ご確認ありがとうございます。
+資料の対象を広げすぎたため、必要以上に複雑に見える形になってしまいました。申し訳ありません。
+
+結論から申し上げると、**「GitHub 内に適切な置き場がまったくない」という意味ではありません**。より正確には、以下の整理になります。
+
+> GitHub は、ファイルや生成物の版管理、差分確認、レビュー、履歴管理、Wiki による閲覧には適しています。
+> 一方で、複数の利用者や Agent が同時に更新し、任意の検索や graph traversal を行う汎用的な共有 DB / GraphDB を、GitHub の標準機能だけで代替することは難しいです。
+
+今回共有候補となっている3種類の情報については、同じ保存方式で扱わず、個別に判断する必要があると考えています。
+
+### 1. Code graph
+
+Code graph については、まず**更新方式を決める必要があります**。
+
+大きく分けると、次の方式があります。
+
+1. 各環境で都度再生成し、graph 自体は共有しない
+2. source commit ごとの immutable snapshot として共有する
+3. branch / commit ごとに名前空間を分けて GraphDB に登録する
+4. 1つの共有 graph を複数利用者が直接更新する
+
+1〜3は、設計によって競合をかなり抑えられます。
+
+例えば commit ごとの snapshot として扱う場合は、既存 graph を上書きせず、以下のように保存できます。
+
+```text
+repository
+└── commit SHA
+    └── graph snapshot
+```
+
+この場合、各 snapshot は immutable であるため、graph データ自体の merge conflict は基本的に発生しません。
+default branch に対応する latest pointer や manifest のみを更新対象にします。
+
+また、Git Repository 内に generated artifact として置く場合も、競合した graph file を手作業で merge せず、最新 branch を取り込んだ後に再生成する方式が現実的です。
+
+一方、**単一の共有 GraphDB を複数の branch / Agent が直接更新する方式については、現時点では競合回避を検証できていません**。DB 製品側の transaction、versioning、namespace、upsert の仕様にも依存するため、現段階で「問題なく回避できる」とは言えません。
+
+したがって、ご認識のとおり、まず code graph の競合パターンを整理するのが優先と考えます。
+
+### 2. Test DB
+
+Test DB は、例えば次のような複合キーを持つ append-only な構造にすれば、更新競合は比較的回避しやすいと考えています。
+
+```text
+repository
++ source commit
++ branch
++ test ID
++ execution ID
+```
+
+既存レコードを上書きするのではなく、実行結果を追加していく方式です。
+
+ただし、用途によって保存先は変わります。
+
+* CI 実行単位の test result を一定期間保存するだけ
+  → GitHub Actions Artifacts でも対応可能
+* 長期間の検索、比較、coverage trend、複数 Repository 横断分析が必要
+  → 外部の Test DB が必要
+
+この点は、想定する検索方法と保存期間を確認した上で決定する必要があります。
+
+### 3. 共有ナレッジ
+
+PJ 固有情報が Markdown などのテキスト中心であり、主な用途が人による閲覧・確認であれば、**GitHub Wiki 単体でも対応可能**という認識です。
+
+ただし、以下まで必要な場合は、Repository 内の Markdown を正本にして Wiki へ同期する方が安全です。
+
+* source code と同じ Pull Request でレビューしたい
+* 特定 commit のコードとの対応を明確にしたい
+* Copilot / Agent が確実に参照する対象にしたい
+* Wiki の直接編集と自動更新の競合を避けたい
+
+今回そこまで厳密な管理が不要であれば、まず Wiki のみで開始する選択肢も妥当だと思います。
+
+## 今後の進め方
+
+次のステップでは対象を code graph に絞り、以下を比較したいと考えています。
+
+| 方式                                    | 主な確認点                    |
+| ------------------------------------- | ------------------------ |
+| 各環境で再生成                               | 生成時間、再現性、共有不要で成立するか      |
+| Commit ごとの snapshot                   | 保存容量、latest の管理、rollback |
+| Branch / commit ごとの GraphDB namespace | query 性能、削除、保持期間         |
+| 単一 GraphDB の共同更新                      | 同時更新、transaction、競合、部分更新 |
+
+確認する観点は以下です。
+
+* 同時に2つの branch が更新された場合の挙動
+* 同じ symbol / edge を更新した場合の挙動
+* source commit と graph version の対応
+* rollback の方法
+* stale graph の検出方法
+* Agent が必要な subgraph のみを取得できるか
+* raw graph を本当に共有する必要があるか
+
+特に最後の点について、graph の生成コストが許容範囲であれば、
+
+```text
+共有するもの:
+- generator
+- schema
+- source digest
+- compact summary
+
+各環境で生成するもの:
+- raw code graph
+```
+
+という構成も候補になります。
+
+まずこの比較を行った上で、共有すべき情報自体を絞る方向で進めたいと思います。
+
+---
+
+## 这版回复的关键点
+
+它客观承认了三件事：
+
+1. **GitHub 原生功能不是共享 GraphDB。**
+2. **当前尚未验证单一共享 GraphDB 的并发冲突，所以不能说已经解决。**
+3. **可能根本不需要共享完整 code graph。**
+   生成成本不高时，只共享 generator、schema、manifest 和摘要，raw graph 在各环境重新生成，往往比共享可变 graph 更简单。
+
+同时也没有下结论说“GitHub 没法用”，而是区分：
+
+```text
+GitHub Repository / Release / Artifacts
+    → 适合版本化 snapshot 和生成物
+
+GitHub Wiki
+    → 适合人阅读的文本知识
+
+External GraphDB / Test DB
+    → 适合可变数据、复杂查询、长期分析
+```
+
