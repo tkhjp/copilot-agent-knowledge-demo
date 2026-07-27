@@ -1,0 +1,86 @@
+name: Knowledge feedback
+description: Wiki または Repository Knowledge の誤り、陳腐化、更新要求を報告します。
+title: "[Knowledge Feedback] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        GitHub Wiki は人向けの downstream mirror です。修正は Wiki を直接編集せず、この Issue または Repository の Pull Request から行ってください。
+
+  - type: input
+    id: wiki_page
+    attributes:
+      label: 対象 Wiki page
+      description: 問題を確認した Wiki page の URL を入力してください。Wiki 以外の場合は「該当なし」と記載してください。
+      placeholder: https://github.com/owner/repository/wiki/...
+    validations:
+      required: true
+
+  - type: input
+    id: source_file
+    attributes:
+      label: 対応する Repository file
+      description: Wiki page に対応する source file が分かる場合は path を入力してください。
+      placeholder: docs/agent-knowledge/generated/modules/example.md
+    validations:
+      required: false
+
+  - type: input
+    id: source_version
+    attributes:
+      label: Source commit / digest
+      description: Page に表示された commit、source digest、generator version があれば入力してください。
+      placeholder: commit abcdef1 / sha256:...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feedback category
+      options:
+        - Source code と矛盾している
+        - Generated knowledge が誤っている
+        - Curated rule / policy を変更したい
+        - Knowledge が古い / stale
+        - Wiki の表示・navigation の問題
+        - Graph query / generator の問題
+        - その他
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: 現在の記載・挙動
+      description: 現在表示されている内容、または問題の再現方法を記載してください。
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する内容・挙動
+      description: 正しいと考える内容、または期待する更新を記載してください。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: 影響
+      options:
+        - Agent が誤った判断をする可能性がある
+        - 開発者・テスト担当者が誤解する可能性がある
+        - 表示または navigation の問題のみ
+        - 不明
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: 確認
+      options:
+        - label: Wiki managed page を直接編集せず、Repository 側で修正する方針を理解しました。
+          required: true
