@@ -4,6 +4,7 @@
 
 ## ドキュメント
 
+- **[現フェーズの調査スコープ（顧客フィードバック反映）](docs/current-phase-shared-data-foundation-scope.ja.md)**
 - **[日本語の詳細 README](README.ja.md)**
 - **[GitHub Agents タブ実行ガイド（日本語）](docs/agents-tab-demo.ja.md)**
 - **[GitHub Wiki 運用ガイド（日本語）](docs/wiki.ja.md)**
@@ -11,6 +12,14 @@
 - [English Agents walkthrough](docs/agents-tab-demo.md)
 - [Architecture](docs/architecture.md)
 - [GitHub Wiki](https://github.com/tkhjp/copilot-agent-knowledge-demo/wiki)
+
+## 現フェーズでの位置付け
+
+顧客フィードバックを踏まえ、現フェーズの主対象は完成されたナレッジ管理機能ではなく、**code graph と test data を保存し、複数環境から共有利用できるデータ基盤**です。
+
+まず各保存方式を単体で評価し、それぞれの「できること・できないこと」を明確にします。その後、Agent が graph data と test data を参照する最小の組み合わせ例を提示します。
+
+このリポジトリ全体は、複数要素を組み合わせた場合の将来利用イメージを示す reference implementation であり、現時点の最終アーキテクチャ決定案ではありません。詳細は[現フェーズの調査スコープ](docs/current-phase-shared-data-foundation-scope.ja.md)を参照してください。
 
 ## 最初に理解すべき点
 
