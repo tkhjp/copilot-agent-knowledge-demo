@@ -27,12 +27,11 @@ jobs:
         run: |
           set -euo pipefail
           make wiki-export
-          test -f dist/wiki/GitHub-Native-Knowledge-Capability-Catalog-JA.md
           test -f dist/wiki/Shared-Project-Knowledge-Management-Design-JA.md
           test -f dist/wiki/Home.md
           test -f dist/wiki/_Sidebar.md
-          grep -q 'GitHub Native Knowledge Capability Catalog JA' dist/wiki/Home.md
-          grep -q 'GitHub Native Knowledge Capability Catalog JA' dist/wiki/_Sidebar.md
+          grep -q 'Shared Project Knowledge Management Design JA' dist/wiki/Home.md
+          grep -q 'Shared Project Knowledge Management Design JA' dist/wiki/_Sidebar.md
 
       - name: Validate knowledge feedback issue form
         shell: bash
