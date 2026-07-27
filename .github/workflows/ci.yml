@@ -27,6 +27,17 @@ jobs:
         run: |
           set -euo pipefail
           make wiki-export
+          test -f dist/wiki/GitHub-Native-Knowledge-Capability-Catalog-JA.md
           test -f dist/wiki/Shared-Project-Knowledge-Management-Design-JA.md
           test -f dist/wiki/Home.md
           test -f dist/wiki/_Sidebar.md
+          grep -q 'GitHub Native Knowledge Capability Catalog JA' dist/wiki/Home.md
+          grep -q 'GitHub Native Knowledge Capability Catalog JA' dist/wiki/_Sidebar.md
+
+      - name: Validate knowledge feedback issue form
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .github/ISSUE_TEMPLATE/knowledge-feedback.yml
+          grep -q '^name: Knowledge feedback$' .github/ISSUE_TEMPLATE/knowledge-feedback.yml
+          grep -q '^body:$' .github/ISSUE_TEMPLATE/knowledge-feedback.yml

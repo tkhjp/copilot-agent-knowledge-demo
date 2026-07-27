@@ -4,7 +4,8 @@
 
 ## ドキュメント
 
-- **[共有プロジェクト知識の管理設計（日本語）](docs/shared-project-knowledge-management-design.ja.md)**
+- **[GitHub ネイティブ機能カタログ — 共有 Project Knowledge の観点](docs/github-native-knowledge-capability-catalog.ja.md)**
+- **[GitHub 機能を用いた共有 Knowledge の編成・運用設計](docs/shared-project-knowledge-management-design.ja.md)**
 - **[日本語の詳細 README](README.ja.md)**
 - **[GitHub Agents タブ実行ガイド（日本語）](docs/agents-tab-demo.ja.md)**
 - **[GitHub Wiki 運用ガイド（日本語）](docs/wiki.ja.md)**
@@ -15,23 +16,28 @@
 
 ## この Repository の位置付け
 
-本 Repository は、あるプロジェクトで共有前提となる knowledge（例: code graph）を、次の仕組みで管理する reference implementation です。
+本 Repository は、あるプロジェクトで共有前提となる knowledge（例: code graph）について、GitHub Wiki、Copilot Agents、Spaces、Repository files、Pull Request、Actions、Issues、Discussions、Projects、Pages、Releases、LFS、Packages、CodeQL、Models、Codespaces、Agentic Workflows、MCP などの GitHub 機能をどの目的で組み合わせるかを示す reference implementation です。
+
+基本構成:
 
 ```text
 Repository knowledge files
         = Source of Truth
 
-Git branch / commit / Pull Request / CI
-        = 更新・競合解決・review
+Git branch / commit / Pull Request / CI / Ruleset
+        = 更新・競合検出・review・承認
 
-GitHub Wiki
+GitHub Wiki / Pages
         = 人向けの可視化・確認画面
 
-GitHub Copilot Agent
-        = knowledge の利用者・変更提案者
+Issues / Discussions / Projects
+        = feedback・議論・進捗管理
+
+GitHub Copilot Agent / Skills / Hooks / MCP
+        = knowledge の利用・変更提案・外部データ接続
 ```
 
-具体的な保存場所、更新方法、conflict 解決、Wiki 同期、Agent 導入後の workflow は、[共有プロジェクト知識の管理設計](docs/shared-project-knowledge-management-design.ja.md)にまとめています。
+各 GitHub 機能の「できること・できないこと」は[機能カタログ](docs/github-native-knowledge-capability-catalog.ja.md)、目的別の組み合わせ方、更新、conflict 解決、Wiki 同期、Agent 導入後の workflow は[編成・運用設計](docs/shared-project-knowledge-management-design.ja.md)にまとめています。
 
 ## 最初に理解すべき点
 

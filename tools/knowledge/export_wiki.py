@@ -8,6 +8,7 @@ from .project import repository_root
 
 
 PAGE_MAP = {
+    "docs/github-native-knowledge-capability-catalog.ja.md": "GitHub-Native-Knowledge-Capability-Catalog-JA.md",
     "docs/shared-project-knowledge-management-design.ja.md": "Shared-Project-Knowledge-Management-Design-JA.md",
     "docs/agents-tab-demo.ja.md": "Agent-Session-Guide-JA.md",
     "docs/wiki.ja.md": "Wiki-Operation-Guide-JA.md",
@@ -17,6 +18,12 @@ PAGE_MAP = {
     "docs/agent-knowledge/curated/domain-rules.md": "Curated-Domain-Rules.md",
     "docs/agent-knowledge/curated/testing-policy.md": "Curated-Testing-Policy.md",
 }
+
+
+ISSUE_URL = (
+    "https://github.com/tkhjp/copilot-agent-knowledge-demo/issues/new"
+    "?template=knowledge-feedback.yml"
+)
 
 
 def export(root: Path, output: Path) -> None:
@@ -33,16 +40,22 @@ def export(root: Path, output: Path) -> None:
             [
                 "# Copilot Agent Knowledge Demo",
                 "",
-                "この Wiki は、リポジトリ内の Agent Knowledge Pack を人向けに閲覧・確認するためのミラーです。",
-                "Knowledge の正本は同一リポジトリ内の versioned files であり、Wiki は downstream view です。",
+                "この Wiki は、Repository 内の共有 Knowledge を人向けに閲覧・確認するための downstream mirror です。",
+                "Knowledge の Source of Truth は同一 Repository 内の versioned files です。",
                 "",
-                "## 共有 Knowledge の管理設計",
+                "## 1. GitHub 機能を理解する",
+                "",
+                "- [[GitHub Native Knowledge Capability Catalog JA]]",
+                "",
+                "GitHub Wiki、Copilot Agents、Spaces、Actions、Issues、Discussions、Projects、Pages、Releases、LFS、Packages、CodeQL、Models、Codespaces、Agentic Workflows、MCP など、共有 Project Knowledge に関係する GitHub 機能の「できること・できないこと」を整理しています。",
+                "",
+                "## 2. 目的別に編成する",
                 "",
                 "- [[Shared Project Knowledge Management Design JA]]",
                 "",
-                "この設計書では、code graph などの共有前提 knowledge をどこに置くか、Git commit / Pull Request でどう更新・競合解決するか、Wiki をどのように同期するか、Agent 導入後に workflow がどう変わるかを説明します。",
+                "Repository のどこに knowledge を置くか、Git commit / Pull Request でどう更新・競合解決するか、Wiki をどう同期するか、Agent 導入後に workflow がどう変わるかを説明します。",
                 "",
-                "## 利用ガイド",
+                "## 3. 利用ガイド",
                 "",
                 "- [[Agent Session Guide JA]]",
                 "- [[Wiki Operation Guide JA]]",
@@ -55,18 +68,27 @@ def export(root: Path, output: Path) -> None:
                 "- [[Curated Domain Rules]]",
                 "- [[Curated Testing Policy]]",
                 "",
+                "## Feedback",
+                "",
+                f"- [Knowledge の誤り・更新要求を Issue として登録する]({ISSUE_URL})",
+                "- 方針が未確定の相談は GitHub Discussions を利用してください。",
+                "- 具体的な修正は source Repository の Pull Request で行ってください。",
+                "",
                 "## 役割分担",
                 "",
                 "```text",
                 "Repository Knowledge Pack = Source of Truth / Agent が参照する知識",
-                "Git commit / Pull Request = 更新・競合解決・review",
+                "Git commit / Pull Request = 更新・競合検出・review・承認",
+                "GitHub Actions           = 生成・検証・Wiki 同期",
                 "GitHub Wiki              = 人向け可視化・確認画面",
+                "Issue / Discussion       = feedback・議論",
                 "Agent Session            = prompt、command、変更理由、監査証跡",
                 "```",
                 "",
                 "## Governance",
                 "",
-                "Managed Wiki pages は自動化により上書きされます。修正は Wiki を直接編集せず、main repository の Issue または Pull Request で行ってください。",
+                "Managed Wiki pages は自動化により上書きされます。修正は Wiki を直接編集せず、main Repository の Issue または Pull Request で行ってください。",
+                "Workflow 管理外の manual Wiki page は保持されますが、Agent の正式な knowledge source にはしません。",
                 "",
             ]
         ),
@@ -76,6 +98,7 @@ def export(root: Path, output: Path) -> None:
         "\n".join(
             [
                 "- [[Home]]",
+                "- [[GitHub Native Knowledge Capability Catalog JA]]",
                 "- [[Shared Project Knowledge Management Design JA]]",
                 "- [[Agent Session Guide JA]]",
                 "- [[Wiki Operation Guide JA]]",
