@@ -1,15 +1,17 @@
-# GitHub Repository における共有 Project Knowledge の管理・利用アーキテクチャ
+# GitHub Repository における共有プロジェクト知識の管理・利用アーキテクチャ
 
 **対象:** code graph、test code、test metadata、architecture information、domain rule など、Repository に紐づく共有プロジェクト知識  
 **想定読者:** ソフトウェア設計・開発プロセスに習熟しているが、GitHub の周辺サービスには必ずしも詳しくないエンジニア  
-**ステータス:** Architecture / Operation Proposal  
+**位置付け:** アーキテクチャ・運用方針案  
 **更新日:** 2026-07-27
+
+> GitHub のサービス名、ファイル名、コマンド、一般的な Git 用語は原語で記載します。それ以外の設計概念は、可能な限り日本語で説明します。
 
 ---
 
-## 1. Executive Summary
+## 1. 要約
 
-本資料は、特定の GitHub Repository に紐づく共有 Project Knowledge を、どこに保存し、どのように versioning・review・同期し、Human と Copilot Agent がどう利用するかを定義します。
+本資料は、特定の GitHub Repository に紐づく共有プロジェクト知識を、どこに保存し、どのように版管理・レビュー・同期し、人と Copilot Agent がどのように利用するかを定義します。
 
 対象となる情報の例は次のとおりです。
 
@@ -18,95 +20,95 @@
 - module responsibility、architecture decision、domain rule、testing policy
 - generator version、schema version、source digest、artifact digest
 
-本設計の中心的な判断は、**Repository 内の versioned files を authoritative store とし、Wiki、Spaces、Agent Session を用途別の派生レイヤーとして扱う**ことです。
+中心となる設計判断は、**Repository 内の版管理対象ファイルを正本（Source of Truth）とし、Wiki、Spaces、Agent Session を用途別の派生レイヤーとして扱う**ことです。
 
 ```text
-Repository versioned files
-        = authoritative store / system of record
+Repository 内の版管理対象ファイル
+        = 正本 / 正式な記録元
 
 Git branch / commit / Pull Request / CI
-        = change control / validation / conflict detection
+        = 変更管理 / 検証 / 競合検出
 
 GitHub Wiki
-        = human-facing derived view
+        = 人向けの派生表示
 
 Copilot Spaces
-        = curated context for Copilot interaction
+        = Copilot 利用向けに選別したコンテキスト
 
 Copilot Agent
-        = execution and change-proposal layer
+        = 実行・変更提案の担い手
 
 Agent Session
-        = execution provenance, not persistent knowledge
+        = 実行履歴・追跡情報
 ```
 
-この構成では、整合性の基準は常に Repository 側にあります。Wiki や Spaces は Repository の状態を反映する派生ビューであり、同期には時間差が生じ得ます。Agent が作成した変更も通常の branch、Pull Request、CI、review を経由します。
+整合性の基準は常に Repository 側に置きます。Wiki や Spaces は Repository の状態を反映する派生情報であり、反映には時間差が生じる可能性があります。Agent が作成した変更も、通常の branch、Pull Request、CI、レビューを経由します。
 
 ### 1.1 推奨する基本構成
 
 ```text
 Source code / tests
         ↓
-Deterministic knowledge generator
+決定的に再生成可能な知識生成処理
         ↓
-Repository Knowledge Pack
+Repository 内知識パック
         ↓
 Pull Request + CI + review
         ↓ merge
         ├── Tool / Copilot / Agent が参照
-        ├── Wiki へ一方向 publish
-        └── Issue を通じて feedback を受付
+        ├── Wiki へ一方向に公開
+        └── Issue で feedback を受付
 ```
 
-### 1.2 非目標
+### 1.2 対象外
 
 本設計は、次を直接実現するものではありません。
 
-- GitHub Wiki を primary database として運用すること
-- Agent Session を長期 Knowledge Store として検索・再利用すること
-- Git の merge 機構だけで semantic conflict を自動解決すること
-- 大規模 graph traversal を GitHub の標準機能だけで実現すること
-- Repository と Wiki の content を双方向に自動同期すること
+- GitHub Wiki を主データベースとして運用すること
+- Agent Session を長期知識ストアとして検索・再利用すること
+- Git の merge 機構だけで意味上の競合を自動解決すること
+- 大規模な graph traversal を GitHub の標準機能だけで実現すること
+- Repository と Wiki の内容を双方向に自動同期すること
 
 ---
 
-## 2. Architecture Principles
+## 2. 設計原則
 
-### P-01: Single Authoritative Store
+### P-01: 正本を一つにする
 
-Project Knowledge の正本は、原則として source code と同一 Repository 内の versioned files に置きます。
+プロジェクト知識の正本は、原則として source code と同一 Repository 内の版管理対象ファイルに置きます。
 
 これにより、次の関係を同一の Git history 上で追跡できます。
 
 ```text
-source state
+source の状態
 ↕
-generated graph / knowledge view
+自動生成 graph / knowledge view
 ↕
-review / approval / validation evidence
+review / approval / CI result
 ```
 
-### P-02: Separate Authoritative Data from Derived Views
+### P-02: 正本と派生表示を分離する
 
 Repository、Wiki、Spaces、Agent Session の責務を混在させません。
 
-| Layer | 主な責務 | Authoritative か |
+| レイヤー | 主な責務 | 正本か |
 |---|---|---:|
-| Repository Knowledge Pack | versioned knowledge、manifest、queryable artifact | Yes |
-| GitHub Wiki | 人向け閲覧、説明、確認、feedback navigation | No |
-| Copilot Spaces | task-specific に選別した Copilot context | No |
-| Agent Session | prompt、tool call、変更理由、validation log | No |
-| GitHub Pages | 検索・filter・graph visualization を含む presentation | No |
+| Repository 内知識パック | 版管理された知識、manifest、検索可能な生成物 | はい |
+| GitHub Wiki | 人向け閲覧、説明、確認、feedback 導線 | いいえ |
+| Copilot Spaces | タスク単位に選別した Copilot 用コンテキスト | いいえ |
+| Agent Session | prompt、tool call、変更理由、検証結果 | いいえ |
+| GitHub Pages | 検索、filter、graph visualization を含む表示画面 | いいえ |
 
-### P-03: Generated Artifacts Are Reproducible Outputs
+### P-03: 自動生成物は再生成可能な出力として扱う
 
-Generated Markdown、raw graph、manifest は手編集対象にしません。競合時は target branch を取り込んだ上で generator を再実行します。
+自動生成 Markdown、raw graph、manifest は手編集対象にしません。競合時は対象 branch を最新化した上で generator を再実行します。
 
-### P-04: Human Approval Remains the Control Boundary
+### P-04: 承認境界は人と Pull Request に残す
 
-Agent を導入しても、Source of Truth、review policy、merge gate は変更しません。Agent は変更案と検証結果を作成しますが、承認境界は Pull Request と CI に置きます。
+Agent を導入しても、正本、review policy、merge gate は変更しません。Agent は変更案と検証結果を作成しますが、承認境界は Pull Request と CI に置きます。
 
-### P-05: Scale by Externalizing Data, Not Governance
+### P-05: 大規模化ではデータを外部化し、管理情報は Repository に残す
 
 Graph が Repository に適さない規模になった場合、complete graph を external GraphDB または object storage に移します。ただし、source digest、snapshot ID、schema version、query client は Repository に残します。
 
@@ -118,59 +120,59 @@ Graph が Repository に適さない規模になった場合、complete graph �
 
 ### 3.1 Repository Files + Git / Pull Request
 
-#### 提供能力
+#### 提供できること
 
-- source code と knowledge を同一 branch / commit / Pull Request で管理
-- diff、review comment、approval、merge history の保持
-- manifest による source state と knowledge artifact の対応付け
-- CODEOWNERS、Rulesets、branch protection による変更統制
-- GitHub Actions による generation、freshness、integrity の検証
-- Repository context を利用する Tool / Copilot / Agent からの参照
+- source code と knowledge を同一 branch / commit / Pull Request で管理する
+- diff、review comment、approval、merge history を保持する
+- manifest により source の状態と knowledge artifact を対応付ける
+- CODEOWNERS、Rulesets、branch protection で変更ルールを強制する
+- GitHub Actions で生成、鮮度、整合性を検証する
+- Repository context を利用する Tool / Copilot / Agent から参照する
 
-#### 制約・非適合ユースケース
+#### 制約・適さない用途
 
-- Git は semantic conflict を自動解決しない
-- compressed graph、binary artifact、generated files の手動 merge には不向き
+- Git は意味上の競合を自動解決しない
+- compressed graph、binary artifact、自動生成ファイルの手動 merge には向かない
 - 高頻度に更新される大量 artifact は Repository history を肥大化させる
-- graph traversal や aggregate query の実行基盤ではない
+- graph traversal や集計 query の実行基盤ではない
 - 人向け portal としての navigation / visualization は限定的
 
-#### 本設計上の責務
+#### 本設計での責務
 
 ```text
 Repository Files + Git / Pull Request
-        = authoritative store + change-control plane
+        = 正本 + 変更管理の仕組み
 ```
 
 ---
 
 ### 3.2 GitHub Wiki
 
-GitHub Wiki は Repository に紐づく人向け documentation surface です。Wiki の内容は本体 Repository とは別の Git Repository（`<repository>.wiki.git`）として管理されます。
+GitHub Wiki は Repository に紐づく人向け documentation 画面です。Wiki の内容は本体 Repository とは別の Git Repository（`<repository>.wiki.git`）で管理されます。
 
-#### 提供能力
+#### 提供できること
 
-- Markdown、image、link、Mermaid diagram の表示
-- system overview、module responsibility、test impact の整理
-- sidebar を利用した knowledge portal の構築
-- onboarding、design review、knowledge confirmation の支援
-- Wiki 自体の revision history の保持
-- source file、Issue、Pull Request への navigation
+- Markdown、画像、link、Mermaid diagram を表示する
+- system overview、module responsibility、test impact を整理する
+- sidebar を利用して knowledge portal を構成する
+- onboarding、design review、knowledge confirmation を支援する
+- Wiki 自体の revision history を保持する
+- source file、Issue、Pull Request への navigation を提供する
 
-#### 制約・非適合ユースケース
+#### 制約・適さない用途
 
-- 本体 Repository の Pull Request と atomic に更新できない
-- raw code graph 全量や大量 generated artifacts の保存には不向き
-- arbitrary graph traversal / query を提供しない
+- 本体 Repository の Pull Request と同一トランザクションで更新できない
+- raw code graph 全量や大量の自動生成物の保存には向かない
+- 任意の graph traversal / query を提供しない
 - Copilot Agent が必ず利用する primary context ではない
-- Repository と Wiki の双方向同期は conflict と ownership を複雑化する
+- Repository と Wiki の双方向同期は競合と ownership を複雑化する
 
-#### 本設計上の責務
+#### 本設計での責務
 
 ```text
 GitHub Wiki
-        = human-facing derived view
-        ≠ authoritative store
+        = 人向けの派生表示
+        ≠ 正本
 ```
 
 同期方向は Repository から Wiki への一方向とします。Wiki で検出した誤りは、Issue または Pull Request として Repository 側へ戻します。
@@ -179,15 +181,15 @@ GitHub Wiki
 
 ### 3.3 Copilot Spaces
 
-Copilot Spaces は、GitHub file、Issue、Pull Request、free text、Space instructions などを task-oriented に集約し、Copilot の回答 context として利用する機能です。
+Copilot Spaces は、GitHub file、Issue、Pull Request、free text、Space instructions などをタスク単位に集約し、Copilot の回答コンテキストとして利用する機能です。
 
-#### 提供能力
+#### 提供できること
 
-- 複数の情報源を domain / task 単位で curated context 化
-- Space 単位の instructions 設定
-- onboarding、support、特定業務向け Q&A の標準化
-- GitHub 上の resource 更新を反映した context 利用
-- IDE から GitHub MCP server を経由した参照
+- 複数の情報源を domain / task 単位で選別する
+- Space 単位で instructions を設定する
+- onboarding、support、特定業務向け Q&A を標準化する
+- GitHub 上の resource 更新を反映したコンテキストを利用する
+- IDE から GitHub MCP server を経由して参照する
 
 例:
 
@@ -199,163 +201,161 @@ Space: Payment Test Knowledge
 └── task instructions
 ```
 
-#### 制約・非適合ユースケース
+#### 制約・適さない用途
 
-- generated artifact の authoritative store にはならない
+- 自動生成物の正本にはならない
 - branch / Pull Request / review / conflict resolution を代替しない
-- source commit と厳密に transactionally bound された snapshot ではない
+- source commit と厳密に結び付いた snapshot 管理ではない
 - IDE 利用は GitHub MCP server と Agent mode が前提で、resource type に制約がある
-- Space 内部 retrieval を任意の graph query API として利用できない
+- Space 内部の検索を任意の graph query API として利用できない
 
-#### 本設計上の責務
+#### 本設計での責務
 
 ```text
-Repository Files = authoritative store
-Copilot Spaces   = curated consumption layer
+Repository Files = 正本
+Copilot Spaces   = Copilot 利用向けの選別済みコンテキスト
 ```
 
-Spaces は Must ではありません。複数 document を task 別に選別し、Copilot の Q&A 品質と利用者体験を改善する場合に採用します。
+Spaces は必須ではありません。複数 document をタスク別に選別し、Copilot の Q&A 品質と利用者体験を改善する場合に採用します。
 
 ---
 
 ### 3.4 Copilot Agent / Agent Session
 
-Copilot Agent は Repository context を調査し、isolated environment で command を実行し、branch / Pull Request に変更を作成する execution layer です。Agent Session はその実行単位と履歴です。
+Copilot Agent は Repository context を調査し、隔離された実行環境で command を実行し、branch / Pull Request に変更を作成する機能です。Agent Session はその実行単位と履歴です。
 
-#### 提供能力
+#### 提供できること
 
-- source、test、Repository knowledge の探索
-- graph query tool を用いた target symbol 周辺の取得
-- branch 上での code / test / knowledge change
-- generator、test、lint、validation command の実行
-- Pull Request の作成
-- prompt、response、tool usage、changed files、validation result の記録
+- source、test、Repository knowledge を探索する
+- graph query tool を使って対象 symbol 周辺を取得する
+- branch 上で code / test / knowledge を変更する
+- generator、test、lint、validation command を実行する
+- Pull Request を作成する
+- prompt、response、tool usage、changed files、validation result を記録する
 
-#### 制約・非適合ユースケース
+#### 制約・適さない用途
 
 - Custom Agent 定義を配置しただけでは Session は開始されない
-- Session は長期共有 knowledge の authoritative store ではない
-- Agent output にも CI と human review が必要
-- Session URL を Agent 間の正式な handoff artifact にしない
+- Session は長期共有 knowledge の正本ではない
+- Agent output にも CI と人の review が必要
+- Session URL を Agent 間の正式な引継ぎ情報にしない
 - Wiki を直接更新する主体にはしない
 
-#### 本設計上の責務
+#### 本設計での責務
 
 ```text
-Copilot Agent = execution / proposal layer
-Agent Session = execution provenance
+Copilot Agent = 実行・変更提案の担い手
+Agent Session = 実行履歴・追跡情報
 ```
 
-正式な handoff は、commit、branch、Pull Request、manifest、Repository knowledge files です。
+正式な引継ぎは、commit、branch、Pull Request、manifest、Repository knowledge files です。
 
 ---
 
 ### 3.5 GitHub Pages
 
-GitHub Pages は Repository content から static site を build / publish する presentation mechanism です。
+GitHub Pages は Repository content から static site を build / publish する表示機能です。
 
-#### 提供能力
+#### 提供できること
 
 - custom layout、全文検索、filter を備えた portal
 - interactive graph visualization
 - Wiki より高度な navigation と UI
-- Repository source からの automated deployment
+- Repository source からの自動 deployment
 
-#### 制約・非適合ユースケース
+#### 制約・適さない用途
 
-- authoritative store にはしない
+- 正本にはしない
 - GraphDB や test DB の代替ではない
 - content の変更・review は元 Repository で実施する
-- site generator、frontend、deployment の maintenance cost が追加される
+- site generator、frontend、deployment の保守費用が追加される
 
-#### 本設計上の責務
+#### 本設計での責務
 
-Wiki で満たせない interactive visualization、検索、filter 要件が明確になった場合に追加する optional presentation layer です。
+Wiki で満たせない interactive visualization、検索、filter 要件が明確になった場合に追加する任意の表示レイヤーです。
 
 ---
 
-### 3.6 Supporting GitHub Mechanisms
+### 3.6 周辺機能
 
-以下は独立した Knowledge Store ではありませんが、運用上の control plane を構成します。
+以下は独立した knowledge store ではありませんが、運用を成立させるために使用します。
 
-| Mechanism | 本設計での用途 |
+| 機能 | 本設計での用途 |
 |---|---|
 | GitHub Actions | generation、freshness / integrity check、Wiki / Pages publish |
 | CODEOWNERS / Rulesets | path ownership、required review、required checks、merge policy |
 | Issues / Issue Forms | Wiki からの defect、stale、update request の受付 |
-| Releases / Release Assets | immutable snapshot の配布 |
+| Releases / Release Assets | 不変 snapshot の配布 |
 | Actions Artifacts | CI run 単位の一時 report、test result、diagnostic artifact |
 | MCP | external GraphDB、test DB、internal API と Agent の接続 |
 
 ---
 
-## 4. Requirements
+## 4. 要件
 
-### 4.1 Must Requirements
+### 4.1 必須要件
 
-以下は、code graph や test knowledge をチームで継続的に共有するための必須要件です。
-
-| ID | Requirement | Acceptance Criteria | Mechanism |
+| ID | 要件 | 受入条件 | 対応する仕組み |
 |---|---|---|---|
-| M-01 | Authoritative store | 正本が一意で、派生ビューと区別できる | Repository versioned files |
-| M-02 | Source-to-knowledge binding | 各 artifact が対象 source state を識別できる | manifest / source digest / commit history |
-| M-03 | Controlled update | 変更が diff、review、approval を経由する | branch / Pull Request |
-| M-04 | Reproducible generation | 同一 logical input から同一 logical output を生成できる | deterministic generator |
-| M-05 | Freshness / integrity gate | STALE、BROKEN、missing artifact を merge 前に検出する | CI required check |
-| M-06 | Conflict policy | artifact 種別ごとの解決方法が定義されている | Git + regeneration rule |
-| M-07 | Human inspection | 非実装者でも概要・状態・source link を確認できる | GitHub Wiki |
-| M-08 | Tool / Agent access | 全量ではなく必要な knowledge slice を取得できる | Repository context + query tool |
+| M-01 | 正本の一意性 | 正本と派生表示を明確に区別できる | Repository versioned files |
+| M-02 | Source と knowledge の対応付け | 各 artifact が対象 source state を識別できる | manifest / source digest / commit history |
+| M-03 | 統制された更新 | 変更が diff、review、approval を経由する | branch / Pull Request |
+| M-04 | 再現可能な生成 | 同一 logical input から同一 logical output を生成できる | deterministic generator |
+| M-05 | 鮮度・整合性 gate | STALE、BROKEN、missing artifact を merge 前に検出する | CI required check |
+| M-06 | 競合解決方針 | artifact 種別ごとの解決方法が定義されている | Git + regeneration rule |
+| M-07 | 人による確認 | 非実装者でも概要・状態・source link を確認できる | GitHub Wiki |
+| M-08 | Tool / Agent からの参照 | 全量ではなく必要な knowledge slice を取得できる | Repository context + query tool |
 | M-09 | Access control | Repository permission と同等以上の境界で保護される | Repository permission / ruleset |
-| M-10 | Traceability | actor、change、review、validation result を追跡できる | commit / PR / CI |
+| M-10 | 追跡可能性 | actor、change、review、validation result を追跡できる | commit / PR / CI |
 | M-11 | Size / retention policy | Repository に保持する artifact の上限と外部化条件がある | threshold + manifest / snapshot pointer |
 
-### 4.2 Must Baseline
+### 4.2 必須構成
 
 ```text
-Repository Knowledge Pack
+Repository 内知識パック
 + Git / Pull Request
-+ Deterministic Generator
++ 再生成可能な generator
 + GitHub Actions
 + GitHub Wiki
 + Issue Feedback
 ```
 
-この baseline を導入しないまま Spaces や Agent を追加すると、context は増えても version consistency と governance が保証されません。
+この構成を導入せずに Spaces や Agent を追加すると、コンテキストは増えても version consistency と governance を保証できません。
 
-### 4.3 Nice-to-Have Requirements
+### 4.3 追加要件
 
-| ID | Requirement | Adoption Trigger | Mechanism |
+| ID | 要件 | 採用条件 | 対応する仕組み |
 |---|---|---|---|
-| N-01 | Curated Copilot context | 複数 document の探索コストが高い | Copilot Spaces |
-| N-02 | Agent execution | test generation、knowledge refresh、validation を委譲したい | Custom Agent / Skill / Hook |
-| N-03 | Execution provenance | Agent の command と判断経緯を確認したい | Agent Session |
-| N-04 | Rich visualization | Wiki では interactive graph / search を満たせない | GitHub Pages |
-| N-05 | Large graph query | traversal、cross-repository query、低 latency が必要 | External GraphDB + MCP |
-| N-06 | Immutable distribution | 特定時点の graph / report を再現可能に配布したい | Release Assets |
-| N-07 | Per-run diagnostics | CI run ごとの test result を一定期間保持したい | Actions Artifacts |
-| N-08 | Stronger governance | owner approval と required checks を強制したい | CODEOWNERS / Rulesets |
-| N-09 | Long-term quality analytics | coverage / mutation / quality trend を横断集計したい | External Test DB |
+| N-01 | Copilot 用の選別済みコンテキスト | 複数 document の探索コストが高い | Copilot Spaces |
+| N-02 | Agent による実行 | test generation、knowledge refresh、validation を委譲したい | Custom Agent / Skill / Hook |
+| N-03 | 実行経緯の確認 | Agent の command と判断経緯を確認したい | Agent Session |
+| N-04 | 高度な可視化 | Wiki では interactive graph / search を満たせない | GitHub Pages |
+| N-05 | 大規模 graph query | traversal、cross-repository query、低 latency が必要 | External GraphDB + MCP |
+| N-06 | 不変形式での配布 | 特定時点の graph / report を再現可能に配布したい | Release Assets |
+| N-07 | 実行単位の診断情報 | CI run ごとの test result を一定期間保持したい | Actions Artifacts |
+| N-08 | 強い変更統制 | owner approval と required checks を強制したい | CODEOWNERS / Rulesets |
+| N-09 | 長期品質分析 | coverage / mutation / quality trend を横断集計したい | External Test DB |
 
-Nice-to-Have は Must baseline を置き換えません。追加レイヤーは必ず authoritative store と version binding を参照します。
+追加要件は必須構成を置き換えません。追加レイヤーは必ず Repository の正本と version binding を参照します。
 
 ---
 
-## 5. Artifact Classification and Storage Policy
+## 5. 情報種別と保存方針
 
-| Artifact Class | 推奨保存先 | Versioning / Retention Policy |
+| 情報種別 | 推奨保存先 | Versioning / Retention Policy |
 |---|---|---|
 | Source code / test code | Repository | source と同一 branch / PR |
-| Curated policy / domain rule | Repository Markdown + Wiki mirror | human review 必須 |
-| Generated module / test-impact summary | Repository Markdown + Wiki mirror | generator 管理、手編集禁止 |
-| Code graph: small / medium | Repository compressed artifact + manifest | source digest と一体管理 |
-| Code graph: large / high-frequency | External GraphDB / object storage + Repository manifest | snapshot ID / URI / schema を記録 |
-| Test execution result | Actions Artifact または external Test DB | per-run data。通常は Git history に常設しない |
+| 人手管理 policy / domain rule | Repository Markdown + Wiki mirror | human review 必須 |
+| 自動生成 module / test-impact summary | Repository Markdown + Wiki mirror | generator 管理、手編集禁止 |
+| Code graph: 小・中規模 | Repository compressed artifact + manifest | source digest と一体管理 |
+| Code graph: 大規模・高頻度 | External GraphDB / object storage + Repository manifest | snapshot ID / URI / schema を記録 |
+| Test execution result | Actions Artifact または external Test DB | 実行単位のデータ。通常は Git history に常設しない |
 | Coverage / quality trend | compact Repository summary または external Test DB | retention と aggregation 要件で判断 |
-| Immutable graph / report bundle | Release Asset | tag / release 単位 |
-| Agent execution history | Agent Session | provenance。authoritative knowledge ではない |
-| Branch-local runtime knowledge | `.agent-runtime/` | temporary、commit しない |
+| 不変 graph / report bundle | Release Asset | tag / release 単位 |
+| Agent execution history | Agent Session | 追跡用。正本ではない |
+| Branch-local runtime knowledge | `.agent-runtime/` | 一時データ、commit しない |
 
-### 5.1 Repository-contained Mode
+### 5.1 Repository 内保存方式
 
 次の条件を満たす場合は、raw graph を Repository に保持できます。
 
@@ -364,14 +364,14 @@ Nice-to-Have は Must baseline を置き換えません。追加レイヤーは�
 - clone / checkout performance に影響しない
 - graph query が file-based tool で足りる
 
-### 5.2 External Graph Mode
+### 5.2 外部 graph 保存方式
 
 次の条件のいずれかを満たす場合、complete graph を外部化します。
 
 - Repository size / history growth が無視できない
 - graph update が高頻度
 - cross-repository graph が必要
-- traversal、path search、aggregate query が主要ユースケース
+- traversal、path search、aggregate query が主要用途
 - Agent に必要な subgraph だけを低 latency で返したい
 
 ```text
@@ -388,21 +388,21 @@ External GraphDB / Object Storage
 
 ---
 
-## 6. Composition Patterns
+## 6. 機能の組み合わせ方
 
-### 6.1 Baseline: Shared Knowledge + Human Review
+### 6.1 標準構成: Knowledge 共有 + 人による確認
 
 ```text
 Source code / tests
         ↓
 Knowledge generator
         ↓
-Repository Knowledge Pack
+Repository 内知識パック
         ↓
 Pull Request + CI + review
         ↓ merge
         ├── Tool / Copilot が参照
-        └── Wiki へ one-way publish
+        └── Wiki へ一方向に publish
                      ↓
                 Issue feedback
 ```
@@ -418,12 +418,12 @@ Pull Request + CI + review
 
 この構成を標準とします。
 
-### 6.2 Add Copilot Q&A
+### 6.2 Copilot Q&A を追加する
 
-Baseline に Copilot Spaces を追加します。
+標準構成に Copilot Spaces を追加します。
 
 ```text
-Repository authoritative data
+Repository の正本
         ↓ selected resources
 Copilot Space
         ↓
@@ -436,11 +436,11 @@ Copilot Chat / onboarding / task-specific Q&A
 - domain または task ごとに context boundary を設けたい
 - Copilot に共通 instructions を付与したい
 
-Spaces は Repository snapshot や change-control mechanism の代替ではありません。
+Spaces は Repository snapshot や変更管理の代替ではありません。
 
-### 6.3 Add Agent-based Change Execution
+### 6.3 Agent に変更作業を実行させる
 
-Baseline に Agent layer を追加します。
+標準構成に Agent layer を追加します。
 
 ```text
 Human starts Agent task
@@ -469,11 +469,11 @@ Wiki refresh
 - Hook
 - Agent Session
 
-Source of Truth、approval boundary、merge rule は変更しません。
+正本、承認境界、merge rule は変更しません。
 
-### 6.4 Add Rich Visualization
+### 6.4 高度な可視化を追加する
 
-Baseline に GitHub Pages を追加します。
+標準構成に GitHub Pages を追加します。
 
 ```text
 Repository compact graph / metadata
@@ -484,7 +484,7 @@ GitHub Pages
 
 Wiki は summary と navigation、Pages は detail visualization を担当します。
 
-### 6.5 Add Large Graph Query for Agents
+### 6.5 Agent 向けに大規模 graph query を追加する
 
 ```text
 Repository manifest / compact views
@@ -493,62 +493,72 @@ Agent Skill / MCP client
         ↓
 External GraphDB
         ↓
-Relevant subgraph only
+必要な subgraph のみ返却
 ```
 
 採用条件:
 
-- graph が Repository-contained mode の上限を超える
+- graph が Repository 内保存方式の上限を超える
 - path / traversal query が必要
 - cross-repository dependency を扱う
 - query result を context budget に合わせて縮約する必要がある
 
 ---
 
-## 7. Logical Architecture
+## 7. 論理構成
 
 ```text
-                              Human
-                                │
-                         browse / confirm
-                                ▼
-                         GitHub Wiki / Pages
-                                │
-                         Issue / PR feedback
-                                │
-                                ▼
-Source / Tests ──→ Generator ──→ Repository Knowledge Pack
-                                        │
-               ┌────────────────────────┼─────────────────────────┐
-               │                        │                         │
-        Pull Request / CI         Copilot Context          External Pointer
-        review / approval        Repository / Space       Graph snapshot URI
-               │                        │                         │
-               └───────────────┬────────┴───────────┬─────────────┘
-                               │                    │
-                         Human Tooling        Copilot Agent
-                                                  │
-                                          Agent Session
-                                                  │
-                                        branch + validation
-                                                  │
-                                              Pull Request
+                               Human
+                                 │
+                          browse / confirm
+                                 ▼
+                          GitHub Wiki / Pages
+                                 │
+                          Issue / PR feedback
+                                 │
+                                 ▼
+Source / Tests ──→ Generator ──→ Repository 内知識パック
+                                      │
+                                      ├── Pull Request / review
+                                      ├── CI freshness / integrity
+                                      ├── Copilot repository context
+                                      ├── optional Copilot Space
+                                      └── Wiki / optional Pages publish
+
+User starts task
+      ↓
+Copilot Agent Session
+      ↓
+source + Repository knowledge を参照
+      ↓
+graph slice を query
+      ↓
+branch change + validation
+      ↓
+Pull Request
+      ↓
+human review / merge
+      ↓
+Wiki / Pages refresh
 ```
 
-### 7.1 Plane Separation
+責務分担:
 
-| Plane | Components | Responsibility |
-|---|---|---|
-| Data Plane | Repository artifacts、external GraphDB / Test DB | knowledge content と query data |
-| Control Plane | Git、PR、Rulesets、CI、manifest | version、approval、integrity、conflict policy |
-| Presentation Plane | Wiki、Pages、Spaces | human / Copilot consumption |
-| Execution Plane | Agent、Skills、Hooks、Sessions | exploration、change proposal、validation |
-
-この分離により、presentation や Agent implementation を変更しても authoritative data と governance を維持できます。
+| 責務 | Mechanism |
+|---|---|
+| Knowledge の正本 | Repository versioned files |
+| 更新と競合検出 | Git branch / commit / Pull Request |
+| 承認 | review / CODEOWNERS / Rulesets |
+| 生成と検証 | GitHub Actions / local command |
+| 人向け表示 | Wiki、必要なら Pages |
+| Copilot 問答 | Repository context、必要なら Spaces |
+| Agent 実行 | Custom Agent / Skill / Hook |
+| Agent 履歴 | Agent Session |
+| 外部 graph query | MCP + external GraphDB |
 
 ---
 
-## 8. Repository Layout and Metadata Contract
+## 8. Repository 内の保存構成
 
 ```text
 repository/
@@ -578,18 +588,22 @@ repository/
     └── ISSUE_TEMPLATE/
 ```
 
-### 8.1 Ownership by Artifact Type
+分類:
 
-| Artifact | Writer | Review / Merge Rule |
+| 種別 | 更新者 | 管理方法 |
 |---|---|---|
-| source / tests | Human / Agent | normal PR review |
-| raw graph | generator only | regenerate; do not hand-edit |
-| generated knowledge | generator only | regenerate; inspect semantic diff |
-| manifest | generator only | schema validation required |
-| curated knowledge | Human; Agent may propose | domain / test owner review |
-| runtime knowledge | Hook / Agent | temporary; never commit |
+| source / tests | Human / Agent | normal Pull Request |
+| raw graph | generator | 再生成のみ |
+| generated knowledge | generator | 再生成のみ |
+| manifest | generator | 再生成のみ |
+| curated knowledge | Human、Agent proposal | 内容 review 必須 |
+| runtime knowledge | Hook / Agent | 一時データ、commit しない |
 
-### 8.2 Manifest Contract
+---
+
+## 9. Version と整合性
+
+### 9.1 Manifest の契約
 
 Knowledge Pack は machine-readable manifest を持ちます。
 
@@ -599,8 +613,7 @@ Knowledge Pack は machine-readable manifest を持ちます。
   "generator_version": "1.1.0",
   "source_digest": "sha256:...",
   "source_files": {
-    "src/payment_service/service.py": "sha256:...",
-    "tests/test_payment_service.py": "sha256:..."
+    "src/payment_service/service.py": "sha256:..."
   },
   "graph": {
     "node_count": 30,
@@ -613,187 +626,186 @@ Knowledge Pack は machine-readable manifest を持ちます。
   "knowledge_artifacts": {
     "modules/payment-service.md": "sha256:...",
     "test-impact/payment-service.md": "sha256:..."
-  },
-  "external_graph": {
-    "snapshot_id": null,
-    "uri": null
   }
 }
 ```
 
-Manifest の必須責務:
+必須項目:
 
-- source state と knowledge state の対応付け
-- generator / schema compatibility の判定
-- artifact integrity の検証
-- external snapshot の参照
-- CI と Agent に共通の freshness contract を提供
+- schema version
+- generator version
+- source digest
+- source file digest
+- graph artifact digest
+- knowledge artifact digest
+- external graph を利用する場合は snapshot ID / URI
 
-### 8.3 Knowledge State
+### 9.2 Knowledge 状態
 
-| State | Condition | Consumer Behavior |
+| 状態 | 条件 | 動作 |
 |---|---|---|
-| CURRENT | source digest と manifest が一致 | committed knowledge を利用可能 |
-| STALE | source digest が不一致 | merge 前に再生成。Agent は runtime knowledge を生成可能 |
-| BROKEN | artifact missing、digest mismatch、schema error | 利用停止し generator から再生成 |
+| CURRENT | source digest が一致 | committed knowledge を利用 |
+| STALE | source digest が不一致 | merge 前に再生成。Agent task では runtime knowledge を生成可能 |
+| BROKEN | artifact 不足、hash / schema error | 利用停止し再生成 |
+
+### 9.3 整合性モデル
+
+| データ面 | 整合性 |
+|---|---|
+| Repository source + knowledge in same commit | 強い版対応 |
+| Pull Request branch | branch 内で一貫 |
+| Wiki | 遅延を許容する一方向同期 |
+| Copilot Spaces | 選択した resource の更新反映に依存 |
+| Agent Session runtime knowledge | Session 内で一時的に一貫 |
+| External GraphDB | snapshot ID / source digest の一致が必要 |
+
+Wiki や Spaces が一時的に古くても、Repository の正本は影響を受けません。
 
 ---
 
-## 9. Update and Validation Workflow
+## 10. 更新の流れ
 
-### 9.1 Source / Test Change
+### 10.1 Source code を変更する
 
 ```text
 Human / Agent
     ↓
 feature branch
     ↓
-source / tests change
+source / tests を変更
     ↓
-knowledge generation
+knowledge generator を実行
     ↓
-source + generated artifacts commit
+source + generated knowledge を commit
     ↓
-unit test / knowledge validation
+make test / make check
     ↓
 Pull Request
     ↓
-review / required checks / merge
+review / merge
     ↓
 Wiki publish
 ```
 
-原則として、source change と影響を受ける knowledge change は同一 Pull Request に含めます。
+原則として source change と影響を受ける knowledge を同じ Pull Request に含めます。
 
-### 9.2 Curated Knowledge Change
+### 10.2 Curated knowledge を変更する
 
 ```text
 Human / Agent proposal
     ↓
-curated Markdown change
+curated Markdown を変更
     ↓
 Pull Request
     ↓
-domain / test owner review
+owner review
     ↓
 merge
     ↓
 Wiki publish
 ```
 
-Generator は curated knowledge を変更しません。
+Generator は curated knowledge を上書きしません。
 
-### 9.3 Generator / Schema Change
+### 10.3 Generator を変更する
 
-同一 Pull Request に次を含めます。
+同じ Pull Request に次を含めます。
 
-- generator implementation
-- generator version / schema version
+- generator code
+- generator / schema version
 - regenerated graph
 - regenerated knowledge views
-- migration note
 - regression tests
 
-CI は byte identity ではなく、必要に応じて canonical logical content の再現性を検証します。
+CI は同じ input から同じ logical output が得られることを確認します。
 
-### 9.4 Required CI Gates
+### 10.4 必須 CI gate
 
-- source digest と manifest の一致
-- artifact existence と digest validation
-- schema validation
-- deterministic regeneration comparison
-- unit / integration test
-- Wiki export smoke test
-- secret / sensitive data exclusion check（本番導入時）
-
----
-
-## 10. Conflict and Concurrency Model
-
-Git は conflict detection と history management を提供します。解決方式は artifact class ごとに定義します。
-
-| Artifact | Resolution Strategy |
+| Gate | 確認内容 |
 |---|---|
-| Source code | merge / rebase 後に semantic review |
-| Curated Markdown | three-way merge。owner が内容を判断 |
-| Generated Markdown | hand merge しない。latest target branch で再生成 |
-| Raw graph | hand merge しない。latest target branch で再生成 |
-| Manifest | hand merge しない。generator で再生成 |
-| Wiki managed page | Repository を正とし、次回 publish で置換 |
-| External graph snapshot | new source digest に対して新 snapshot を publish |
+| Unit / integration test | 実装が壊れていない |
+| Freshness check | source digest と manifest が一致 |
+| Deterministic regeneration | 再生成結果が commit 済み artifact と論理的に一致 |
+| Schema validation | manifest / graph schema が有効 |
+| Secret / size check | 機密情報と過大 artifact を拒否 |
+| Wiki export check | managed Wiki pages を生成できる |
 
-### 10.1 Parallel Agent / Developer Changes
-
-```text
-PR A merges
-    ↓
-PR B rebases onto latest default branch
-    ↓
-regenerate knowledge
-    ↓
-run validation
-    ↓
-review / merge
-```
-
-Generated artifact の conflict を editor で修正してはいけません。再生成により、source state と artifact state の一貫性を回復します。
-
-### 10.2 Concurrency Invariants
-
-- default branch の knowledge は、その branch の source digest と一致する
-- Wiki publisher は single-writer として動作する
-- 古い publish job が新しい Wiki state を後から上書きしない
-- external graph snapshot は immutable ID で参照する
+`STALE` または `BROKEN` の場合は merge しません。
 
 ---
 
-## 11. Wiki Publication Model
+## 11. 競合解決
 
-### 11.1 Consistency Model
+Git は競合の検出と履歴管理を行います。解決方法は artifact 種別で分けます。
 
-Repository が authoritative、Wiki は eventually consistent な derived view です。
+| 対象 | 解決方法 |
+|---|---|
+| Source code | merge / rebase 後に人が意味を確認 |
+| Curated Markdown | three-way merge。内容 owner が判断 |
+| Generated Markdown | 手動 merge しない。最新 branch で再生成 |
+| Raw graph | 手動 merge しない。最新 branch で再生成 |
+| Manifest | 手動 merge しない。最新 branch で再生成 |
+| Wiki managed page | Repository を正とし、次回 publish で置換 |
+| External graph snapshot | 新しい snapshot を生成し、manifest pointer を更新 |
+
+複数 Agent / developer が並行作業する場合:
 
 ```text
-Repository merge
-    ↓ asynchronous publish
-Wiki update
+Agent A branch ──→ PR A ──→ merge
+Agent B branch ──→ rebase latest develop
+                 ──→ regenerate knowledge
+                 ──→ make check
+                 ──→ merge
 ```
 
-Wiki publish failure は authoritative knowledge を破壊しません。Repository merge は保持し、publish job を再実行します。
+Compressed graph や binary artifact を conflict editor で直接修正しません。
 
-### 11.2 Managed and Manual Pages
+---
 
-| Page Type | Ownership | Rule |
-|---|---|---|
-| Managed page | Repository + Actions | Wiki 上で直接編集しない |
-| Manual page | Human on Wiki | Workflow は削除しない。確定 knowledge は Repository へ昇格 |
+## 12. Wiki の更新と feedback
 
-Managed page の例:
-
-- System Overview
-- Module Knowledge
-- Test Impact
-- Domain Rules
-- Testing Policy
-- Architecture / Operation Guide
-
-Manual page の例:
-
-- meeting note
-- temporary discussion memo
-- onboarding memo
-
-### 11.3 Publish Workflow
+### 12.1 同期方向
 
 ```text
-1. default branch checkout
-2. Wiki Markdown export
-3. <repository>.wiki.git clone
-4. previous managed-page manifest read
-5. managed pages only replace
-6. new managed-page manifest write
+Repository → Wiki
+```
+
+内容の自動双方向同期は行いません。
+
+Feedback は次の経路で戻します。
+
+```text
+Wiki
+  ↓
+Knowledge Feedback Issue / Pull Request
+  ↓
+Repository change
+  ↓ merge
+Wiki refresh
+```
+
+### 12.2 Managed page と Manual page
+
+| Page | 管理方法 |
+|---|---|
+| Managed page | Repository から Actions で生成・上書き |
+| Manual page | Wiki 上で人が管理。Workflow は削除しない |
+
+Manual page は meeting note や一時的な説明に使えますが、Agent の正式な knowledge source にはしません。確定 knowledge になった内容は Repository に移します。
+
+### 12.3 公開処理
+
+```text
+1. develop を checkout
+2. Wiki 用 Markdown を export
+3. <repository>.wiki.git を clone
+4. 前回の managed page だけを削除
+5. 新しい managed page を copy
+6. .managed-pages を更新
 7. Wiki commit / push
 ```
+
+同時実行制御:
 
 ```yaml
 concurrency:
@@ -801,55 +813,49 @@ concurrency:
   cancel-in-progress: true
 ```
 
-### 11.4 Page Metadata
+### 12.4 Wiki page の metadata
 
-Managed page には次の metadata を表示することを推奨します。
+Managed page の先頭には次の情報を表示します。
 
 ```markdown
-> **Management:** generated and published from the source Repository
+> **管理方式:** Repository から自動同期される managed page
 > **Source repository:** `owner/repository`
 > **Published from commit:** `abcdef1`
 > **Source digest:** `sha256:...`
 > **Generator version:** `1.1.0`
-> **Knowledge state:** `CURRENT`
+> **Status:** CURRENT
 > **Source file:** `docs/agent-knowledge/generated/...`
-> **Change request:** use Issue or Pull Request; do not edit this page directly
+> **修正方法:** Wiki を直接編集せず、Issue または Pull Request を作成してください。
 ```
 
-### 11.5 Feedback Path
+### 12.5 Wiki 公開失敗時
 
-```text
-Wiki page
-    ↓
-Knowledge Feedback Issue / Pull Request
-    ↓
-Repository change
-    ↓
-review / merge
-    ↓
-Wiki republish
-```
+Wiki は派生表示であるため、publish failure で正本を巻き戻しません。
 
-Content synchronization is one-way; feedback flow is bidirectional through GitHub workflow objects.
+- Repository merge は保持する
+- workflow failure を通知する
+- manual rerun を可能にする
+- 次回は最新 default branch から再生成する
+- Wiki に source commit / status を表示し、古い表示を識別できるようにする
 
 ---
 
-## 12. Agent Execution Model
+## 13. Agent 利用時の流れ
 
-### 12.1 Without Agent
+### 13.1 Agent を使用しない場合
 
 ```text
 Human
-  ↓ source / knowledge investigation
-  ↓ graph query
-  ↓ code / test / knowledge change
-  ↓ generation / validation
+  ↓ source / knowledge を調査
+  ↓ graph を確認
+  ↓ code / test / knowledge を変更
+  ↓ generator / validation
   ↓ Pull Request
   ↓ review / merge
   ↓ Wiki publish
 ```
 
-### 12.2 With Agent
+### 13.2 Agent を使用する場合
 
 ```text
 Human starts Agent task
@@ -858,17 +864,17 @@ Agent Session starts
         ↓
 sessionStart freshness check
         ↓
-CURRENT or runtime knowledge selected
+CURRENT または runtime knowledge を選択
         ↓
-relevant graph slice queried
+target symbol の graph slice を query
         ↓
-source / generated / curated knowledge inspected
+source / generated / curated knowledge を確認
         ↓
-branch change
+branch 上で変更
         ↓
-knowledge regeneration when required
+必要なら knowledge を再生成
         ↓
-test / validation
+make test / make check
         ↓
 Pull Request
         ↓
@@ -877,29 +883,27 @@ human review / merge
 Wiki publish
 ```
 
-### 12.3 Agent Information Precedence
+Agent の情報優先順位:
 
 ```text
-1. current branch source code
-2. current branch runtime knowledge
+1. 現在 branch の source code
+2. 現在 branch 用 runtime knowledge
 3. committed generated knowledge
 4. curated knowledge
 5. Space / Wiki / Issue / PR / Session history
 ```
 
-Current source code remains authoritative when any derived context conflicts with implementation.
-
-### 12.4 Agent Pull Request Provenance
+### 13.3 Agent Pull Request の追跡情報
 
 ```markdown
-## Knowledge Provenance
+## Knowledge provenance
 
 - Base branch: `develop`
 - Source digest: `sha256:...`
-- Knowledge state: `CURRENT` / `RUNTIME`
-- Generated artifacts used:
+- Knowledge status: `CURRENT` / `RUNTIME`
+- Generated files used:
   - `docs/agent-knowledge/generated/modules/...`
-- Curated artifacts used:
+- Curated files used:
   - `docs/agent-knowledge/curated/...`
 - Graph query:
   - symbol: `PaymentService.authorize`
@@ -909,124 +913,159 @@ Current source code remains authoritative when any derived context conflicts wit
   - `make check`
 ```
 
-### 12.5 Agent Failure Boundaries
+### 13.4 Agent 障害時の扱い
 
-- Agent が knowledge を誤解しても、PR review と CI で default branch への反映を防ぐ
-- Agent Session が失われても、commit / PR / manifest に正式な handoff を残す
-- external GraphDB が unavailable の場合、Agent は compact Repository view に degrade するか task を停止する
-- runtime knowledge が BROKEN の場合、Agent は generated claims を利用せず current source を直接調査する
-
----
-
-## 13. Security and Operational Considerations
-
-### 13.1 Access Control
-
-- Knowledge は原則として source Repository と同じ visibility / permission boundary に置く
-- Wiki、Pages、Spaces、Artifacts の visibility が source より広くならないことを確認する
-- external GraphDB / MCP credential は Secrets / Environments で管理する
-- Agent tool permissions は least privilege とする
-
-### 13.2 Sensitive Data
-
-Knowledge generator の input から次を除外します。
-
-- secrets / credentials
-- production payload
-- customer data
-- unrestricted logs
-- personally identifiable information
-- license 上再配布できない content
-
-### 13.3 Observability
-
-最低限記録する情報:
-
-- generator version / schema version
-- source digest / artifact digest
-- CI run and validation result
-- Wiki publish source commit
-- external graph snapshot ID
-- Agent Session / PR linkage
-
-### 13.4 Backup and Recovery
-
-- Repository と Wiki はそれぞれ Git Repository として backup 可能
-- external graph は snapshot / backup policy を別途持つ
-- Wiki は再生成可能な派生データとし、disaster recovery の優先順位を Repository より下げる
-
----
-
-## 14. Recommended Adoption Path
-
-### Phase 1: Baseline Governance
-
-- Repository Knowledge Pack
-- manifest / source digest
-- deterministic generator
-- PR / CI validation
-- Wiki one-way publish
-- Issue feedback
-
-### Phase 2: Copilot Consumption
-
-- task-specific Copilot Spaces
-- repository instructions
-- query tool の標準化
-
-### Phase 3: Agent Execution
-
-- Custom Agent / Skill / Hook
-- Agent Session provenance
-- Agent PR template
-
-### Phase 4: Scale-out
-
-- GitHub Pages for rich visualization
-- external GraphDB / Test DB
-- MCP integration
-- organization-level rules / common agents
-
-導入順序は、presentation や Agent convenience より先に、authoritative store と consistency contract を確立することを原則とします。
-
----
-
-## 15. Decision for This Demo
-
-| Capability | Current Decision |
+| 状況 | 方針 |
 |---|---|
-| Repository Knowledge Pack | adopted as authoritative store |
-| Git / Pull Request / CI | adopted for change control and validation |
-| Wiki | adopted as human-facing derived view |
-| Issue Form | adopted as Wiki feedback entry point |
-| Copilot Agent / Session | agent definitions available; validate with actual sessions |
-| Copilot Spaces | optional; adopt when curated Q&A is required |
-| GitHub Pages | optional; adopt when interactive visualization is required |
-| External GraphDB / MCP | optional; adopt when size or query complexity exceeds Repository mode |
+| Agent が knowledge を誤解した | Pull Request review と CI で default branch への混入を防ぐ |
+| Session が失われた | commit、PR、manifest を正式な引継ぎとして利用する |
+| External GraphDB が利用不能 | Repository compact view に降格するか task を停止する |
+| runtime knowledge が BROKEN | generated claim を利用せず current source を直接確認する |
+| Agent が過大な変更を作成した | Pull Request を分割し、変更範囲を限定する |
 
 ---
 
-## 16. Operational Rules
+## 14. セキュリティと権限
 
-1. Authoritative knowledge is stored in the Repository.
-2. Generated artifacts are never edited manually.
-3. Curated knowledge changes require Pull Request review.
-4. Source changes and affected knowledge changes are included in the same Pull Request whenever feasible.
-5. STALE or BROKEN knowledge blocks merge.
-6. Wiki managed pages are not edited directly.
-7. Wiki feedback returns through Issue or Pull Request.
-8. Agents use isolated branches and normal merge controls.
-9. Agent Sessions are provenance, not persistent knowledge.
-10. Large graphs retain manifest and compact views in the Repository while externalizing complete data.
+### 14.1 Access control
+
+- Repository knowledge は Repository permission に従う
+- Wiki は Repository visibility と access policy を確認する
+- External GraphDB credential は Secrets / Environment で管理する
+- Agent / Workflow は least privilege とする
+- write permission は publish / update job のみに限定する
+
+### 14.2 Knowledge に含めない情報
+
+- secret / token / private key
+- production customer data
+- unrestricted log
+- personal data
+- 機密性の高い prompt / Session transcript
+- ライセンス上共有できない source / document
+
+### 14.3 外部 GraphDB + MCP
+
+- query result の最大件数と depth を制限する
+- Repository / branch / source digest を query condition に含める
+- read-only tool を基本とする
+- write operation は別 tool と承認フローに分離する
+- query log を監査可能にする
 
 ---
 
-## 17. Official References
+## 15. 運用監視、バックアップ、復旧
+
+### 15.1 記録する情報
+
+- current / stale / broken artifact 数
+- generator duration
+- graph node / edge count
+- artifact size
+- Wiki publish source commit
+- Wiki publish lag
+- Agent task success / failure
+- external query failure rate
+
+### 15.2 バックアップ対象
+
+| 対象 | 復旧元 |
+|---|---|
+| Repository knowledge | Git clone / mirror backup |
+| Wiki | `<repository>.wiki.git` clone |
+| Release snapshot | Release assets |
+| External GraphDB | DB snapshot / object storage backup |
+| Agent Session | 補助情報。正式復旧元にはしない |
+
+### 15.3 復旧原則
+
+- 自動生成 artifact は source + generator から再生成する
+- Wiki managed page は Repository から再publishする
+- curated knowledge は Git history から復旧する
+- external graph は snapshot ID と manifest の対応を検証する
+
+---
+
+## 16. 段階導入
+
+### Phase 1: 基本管理
+
+```text
+Repository Knowledge Pack
++ manifest
++ deterministic generator
++ CI freshness / integrity
++ Pull Request review
++ Wiki mirror
+```
+
+### Phase 2: Copilot 利用
+
+```text
++ Repository instructions
++ graph query tool
++ optional Copilot Spaces
+```
+
+### Phase 3: Agent 実行
+
+```text
++ Custom Agent
++ Skill
++ Hook
++ Agent Session
++ PR provenance rule
+```
+
+### Phase 4: 大規模化
+
+```text
++ External GraphDB / Test DB
++ MCP
++ Pages visualization
++ release / retention policy
+```
+
+まず正本、版対応、整合性の契約を確立し、その後に Spaces、Agent、Pages を追加します。
+
+---
+
+## 17. 本 Demo での採用判断
+
+| 機能 | 現在の扱い |
+|---|---|
+| Repository Knowledge Pack | 正本として採用 |
+| Git / Pull Request / CI | 更新・検証に採用 |
+| Wiki | 人向け mirror として採用 |
+| Issue Form | Wiki feedback 入口として採用 |
+| Copilot Agent / Session | Agent 定義済み。実 Session で利用確認 |
+| Copilot Spaces | 未採用。Copilot Q&A 用 context が必要な場合に追加 |
+| GitHub Pages | 未採用。interactive graph / search が必要な場合に追加 |
+| External GraphDB / MCP | 未採用。graph size と query 要件で判断 |
+
+---
+
+## 18. 運用ルール
+
+1. 正本は Repository に置く
+2. Generated knowledge を直接編集しない
+3. Curated knowledge は Pull Request で review する
+4. Source change と knowledge change は原則同じ Pull Request に含める
+5. CI が STALE / BROKEN を検出した場合は merge しない
+6. Wiki managed page を直接編集しない
+7. Wiki feedback は Issue / Pull Request に戻す
+8. Agent は独立 branch を使用する
+9. Agent Session を長期 knowledge として参照しない
+10. Large graph は manifest と compact view を Repository に残す
+
+---
+
+## 19. 公式仕様参照
 
 - [About wikis](https://docs.github.com/en/communities/documenting-your-project-with-wikis/about-wikis)
 - [Adding or editing wiki pages](https://docs.github.com/en/communities/documenting-your-project-with-wikis/adding-or-editing-wiki-pages)
+- [About GitHub Copilot Spaces](https://docs.github.com/en/copilot/concepts/context/spaces)
 - [Using GitHub Copilot Spaces](https://docs.github.com/en/copilot/how-tos/provide-context/use-copilot-spaces/use-copilot-spaces)
 - [Using Copilot cloud agent on GitHub](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-on-github)
-- [Managing agent sessions](https://docs.github.com/en/copilot/how-tos/copilot-on-github/use-copilot-agents/manage-and-track-agents)
 - [GitHub Pages documentation](https://docs.github.com/en/pages)
 - [Workflow concurrency](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)
