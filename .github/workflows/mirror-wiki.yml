@@ -11,6 +11,7 @@ on:
       - "docs/agents-tab-demo.ja.md"
       - "docs/wiki.ja.md"
       - "tools/knowledge/export_wiki.py"
+      - ".github/ISSUE_TEMPLATE/knowledge-feedback.yml"
 
 permissions:
   contents: write
@@ -47,13 +48,31 @@ jobs:
             exit 1
           fi
 
-      - name: Publish Wiki mirror
+      - name: Publish managed Wiki pages
         shell: bash
         run: |
           set -euo pipefail
 
-          find wiki -mindepth 1 -maxdepth 1 -type f -name '*.md' -delete
+          managed_manifest="wiki/.managed-pages"
+
+          # Remove only pages managed by the previous mirror run. Manual Wiki
+          # pages remain untouched and can be used for human discussion notes.
+          if [[ -f "$managed_manifest" ]]; then
+            while IFS= read -r page; do
+              [[ -z "$page" ]] && continue
+              rm -f "wiki/$page"
+            done < "$managed_manifest"
+          else
+            # First migration from the old all-pages-managed workflow: replace
+            # only files that the current exporter owns.
+            while IFS= read -r exported; do
+              rm -f "wiki/$(basename "$exported")"
+            done < <(find dist/wiki -maxdepth 1 -type f -name '*.md' | sort)
+          fi
+
           cp dist/wiki/*.md wiki/
+          find dist/wiki -maxdepth 1 -type f -name '*.md' -printf '%f\n' \
+            | sort > "$managed_manifest"
 
           git -C wiki config user.name "github-actions[bot]"
           git -C wiki config user.email "41898282+github-actions[bot]@users.noreply.github.com"
