@@ -1,28 +1,36 @@
 # GitHub Repository における共有 Project Knowledge の管理・利用設計
 
-**対象:** code graph、test knowledge、architecture metadata、domain rule など、Repository 内で共有するプロジェクト知識  
+**対象:** code graph、test code、test metadata、architecture information、domain rule など、Repository 内で共有するプロジェクト知識  
 **想定利用者:** 開発者、テスト担当者、GitHub Copilot 利用者、CI/CD 管理者、プロジェクト管理者  
 **ステータス:** 実装・運用方針案  
 **更新日:** 2026-07-27
 
 ---
 
-## 1. 目的と結論
+## 1. 本資料の目的
 
-本資料の目的は、ある Repository に紐づく共有 Project Knowledge を、GitHub 上でどのように保存・更新・確認・利用するかを定義することです。
+本資料では、ある GitHub Repository において共有前提となる Project Knowledge を、次の観点で整理します。
+
+1. GitHub 上の関連機能は何ができ、何ができないか
+2. code graph や test 関連情報を共有するために必要な機能は何か
+3. 必須機能（Must）と追加機能（Nice to Have）をどう分けるか
+4. それらの機能をどのように組み合わせるか
+5. 更新、conflict、Wiki 同期、Agent 利用時の workflow をどう設計するか
 
 対象となる knowledge の例:
 
 - code graph
 - symbol / call / dependency / inheritance relationship
 - module responsibility
-- test impact
+- test code
+- test inventory / test impact
 - test policy
 - domain rule
 - architecture decision
 - generator / schema metadata
+- test execution result / coverage summary
 
-推奨する基本構成は次です。
+本資料の基本結論は次です。
 
 ```text
 Repository 内の versioned knowledge files
@@ -41,84 +49,77 @@ Copilot Agent / Session
         = knowledge の利用・変更提案・検証と、その実行履歴
 ```
 
-基本原則:
-
-1. Knowledge の正本は Repository に置く
-2. Wiki は Repository から一方向同期する
-3. Wiki の feedback は Issue / Pull Request に戻す
-4. generated artifact の conflict は手動 merge せず再生成する
-5. Agent も branch と Pull Request を経由する
-6. Agent Session は knowledge database ではなく provenance として扱う
-7. 大規模 raw graph は Repository に無制限に蓄積しない
-
 ---
 
-## 2. 今回比較する GitHub 機能
+## 2. 関連する GitHub 機能
 
 今回の目的に直接関係する機能だけを比較します。
 
-| 機能 | 主な役割 | 適している用途 | 適していない用途 |
-|---|---|---|---|
-| Repository files + Git / Pull Request | Knowledge の正本、version、review | source と knowledge の一体管理、変更履歴、CI | 人向けの見やすい portal、巨大 graph の対話検索 |
-| GitHub Wiki | 人向けの閲覧・確認画面 | overview、diagram、onboarding、feedback 導線 | Source of Truth、raw graph 全量、Agent の必須 context |
-| Copilot Spaces | Copilot 用の curated context | 複数 document をまとめた問答、onboarding、task-specific context | 厳密な version 管理、generated artifact の保存、競合解決 |
-| Copilot Agent / Session | Knowledge を利用した作業と実行履歴 | 調査、test generation、validation、PR 作成、provenance | 長期共有 knowledge の保存先 |
-| GitHub Pages | 高度な人向け表示 | 全文検索、interactive graph、custom UI | Knowledge の正本、PR を経由しない直接更新 |
-
-周辺機能として、Pull Request、CODEOWNERS / Rulesets、GitHub Actions、Issues、MCP を組み合わせます。これらは独立した knowledge 保存先ではなく、更新・承認・自動化・feedback・外部接続のために利用します。
-
 ### 2.1 Repository files + Git / Pull Request
 
-Repository 内の file を knowledge の Source of Truth とします。
+#### できること
+
+- source code と knowledge を同じ branch / commit で管理する
+- Pull Request で diff、review、approval、merge を行う
+- knowledge がどの source version に対応するかを記録する
+- CODEOWNERS、Rulesets、Branch protection で承認ルールを強制する
+- GitHub Actions で generation、freshness、integrity を検証する
+- Repository index を通じて Copilot が text knowledge を検索する
+
+#### できないこと・注意点
+
+- Git が意味上の conflict を自動解決するわけではない
+- generated file や compressed graph を人が手作業で merge する運用には向かない
+- 大規模 raw graph を長期間 commit すると clone size と history size が増える
+- 人向けの navigation や可視化は Wiki / Pages より弱い
+
+#### 本設計での位置付け
 
 ```text
-docs/agent-knowledge/generated/
-docs/agent-knowledge/curated/
-artifacts/codegraph/
+Repository files + Git / Pull Request
+        = Knowledge の Source of Truth
 ```
 
-できること:
-
-- source code と同じ branch / commit / Pull Request で管理
-- diff、review、approval、merge
-- CI による freshness / integrity check
-- branch protection や ruleset による運用強制
-- Repository index を通じた Copilot retrieval
-
-注意点:
-
-- Git は競合を自動的に意味解決するわけではない
-- generated file や binary graph は手動 merge に向かない
-- graph が大きい場合は clone size と history size が増える
+---
 
 ### 2.2 GitHub Wiki
 
-Wiki は人が knowledge を閲覧・確認する presentation layer として利用します。
+#### できること
 
-適する内容:
+- Markdown、画像、link、Mermaid diagram を人向けに表示する
+- system overview、module responsibility、test impact を見やすく整理する
+- sidebar を使って knowledge portal を構成する
+- onboarding、確認、説明、feedback の入口にする
+- Wiki 自体の Git history を保持する
 
-- system overview
-- module responsibility
-- dependency / test impact の要約
-- Mermaid diagram
-- domain rule / testing policy
-- source file、Issue、Pull Request への link
+#### できないこと・注意点
 
-本体 Repository とは別の Wiki Git Repository で管理されるため、Source of Truth にはしません。
+- 本体 Repository の Pull Request と同じ transaction で更新できない
+- raw code graph 全量や大量 generated files の保存先には向かない
+- arbitrary graph traversal / query はできない
+- Copilot Agent が必ず参照する primary context ではない
+- Repository と Wiki の自動双方向同期は conflict が複雑になる
+
+#### 本設計での位置付け
 
 ```text
-Repository knowledge
-        ↓ one-way publish
 GitHub Wiki
-        ↓ human review
-Issue / Pull Request
-        ↓
-Repository change
+        = human-facing presentation / confirmation layer
+        ≠ Source of Truth
 ```
+
+Repository から Wiki へ一方向同期し、Wiki で見つかった問題は Issue または Pull Request に戻します。
+
+---
 
 ### 2.3 Copilot Spaces
 
-Spaces は、Copilot が参照する context をテーマ単位でまとめる用途に適しています。
+#### できること
+
+- Repository file、Issue、Pull Request、free text などをテーマ単位でまとめる
+- Space ごとの instructions を設定する
+- 複数 document を横断した Copilot Chat の context として利用する
+- onboarding や特定業務向けの curated context を作る
 
 例:
 
@@ -127,148 +128,265 @@ Space: Payment Test Knowledge
 ├── testing policy
 ├── payment module knowledge
 ├── related Issue / Pull Request
-└── instructions
+└── task instructions
 ```
 
-適する用途:
+#### できないこと・注意点
 
-- Copilot Chat での質問
-- 複数 document を横断した onboarding
-- 特定テーマの curated context
-- Repository file、Issue、Pull Request、free text の組み合わせ
+- generated artifact の Source of Truth には向かない
+- Git branch / Pull Request の代わりにはならない
+- conflict resolution や厳密な version binding の仕組みではない
+- IDE からの利用は MCP を経由し、resource type に制約がある
+- Space の内部検索を任意の graph query API として利用することはできない
 
-本設計での位置付け:
+#### 本設計での位置付け
 
 ```text
 Repository files = Source of Truth
-Space            = Copilot consumption view
+Copilot Spaces   = Copilot consumption / curation layer
 ```
 
-GitHub file など GitHub 上の source は更新に追従しますが、Space 自体を generated artifact の正本や conflict resolution の場所にはしません。
-
-IDE から Space を利用する場合は GitHub MCP server を利用します。IDE 利用時には repository context と uploaded file に制約があるため、Repository 内の knowledge files を主経路として残します。
-
-### 2.4 Copilot Agent / Session
-
-Agent は knowledge の保存先ではなく、knowledge を使って作業する実行主体です。
-
-Agent が行うこと:
-
-- knowledge freshness の確認
-- target symbol の graph query
-- source / generated / curated knowledge の確認
-- test または code change の作成
-- knowledge の再生成
-- test / CI command の実行
-- branch / Pull Request の作成
-
-Session が残すもの:
-
-- prompt
-- response
-- command
-- tool usage
-- read / changed files
-- validation result
-- branch / Pull Request
-
-Session は実行理由を確認するための provenance であり、次の Agent が参照する正式な handoff は commit、branch、Pull Request、Repository knowledge です。
-
-### 2.5 GitHub Pages
-
-Wiki より高度な UI が必要な場合に Pages を追加します。
-
-採用条件:
-
-- graph の interactive visualization が必要
-- client-side search が必要
-- navigation や layout を自由に設計したい
-- static site generator を利用したい
-
-Pages も Repository から build する downstream view とし、Source of Truth にはしません。
+Space は必須ではありません。複数 document を選別して Copilot 問答に利用したい場合に追加します。
 
 ---
 
-## 3. 目的別の推奨編成
+### 2.4 Copilot Agent / Agent Session
 
-### 3.1 共有 Knowledge を version 管理し、人が確認する
+#### できること
 
-最小構成:
+- Repository の source / knowledge を調査する
+- target symbol の graph slice を query する
+- test または code change を branch 上で作成する
+- generator、test、validation command を実行する
+- Pull Request を作成する
+- Session に prompt、command、tool usage、changed files、validation result を残す
+
+#### できないこと・注意点
+
+- Agent 定義を置いただけでは Session は作成されない
+- Session は長期共有 knowledge の保存先ではない
+- Agent が生成した内容も human review と CI を必要とする
+- Agent Session を次の Agent の正式な handoff artifact にしない
+- Wiki を直接変更する主体にはしない
+
+#### 本設計での位置付け
 
 ```text
-Repository knowledge files
-+ Pull Request / review
+Copilot Agent = Knowledge を利用して作業する execution layer
+Agent Session = 実行履歴 / provenance
+```
+
+正式な handoff は commit、branch、Pull Request、Repository knowledge です。
+
+---
+
+### 2.5 GitHub Pages
+
+#### できること
+
+- custom layout、全文検索、filter を持つ static portal を構築する
+- interactive graph visualization を表示する
+- Wiki より高度な navigation と UI を提供する
+- Repository content から自動 build / deploy する
+
+#### できないこと・注意点
+
+- Knowledge の Source of Truth にはしない
+- graph database の代わりにはならない
+- 編集・review は元の Repository で行う必要がある
+- UI の build / maintenance cost が追加される
+
+#### 本設計での位置付け
+
+Wiki で不足する可視化・検索要件が発生した場合に追加する Nice to Have です。
+
+---
+
+### 2.6 周辺機能
+
+次の機能は独立した knowledge 保存先ではありませんが、運用を成立させるために利用します。
+
+| 機能 | 用途 |
+|---|---|
+| GitHub Actions | generation、freshness、integrity、Wiki / Pages publish |
+| CODEOWNERS / Rulesets | owner review、required checks、merge rule |
+| Issues / Issue Forms | Wiki からの誤り・stale・更新要求の受付 |
+| MCP | external GraphDB / test DB / internal API を Agent に接続 |
+| Releases / Actions Artifacts | snapshot や一時的 test result の配布・保存 |
+
+---
+
+## 3. 共有 Project Knowledge に必要な機能
+
+### 3.1 Must
+
+code graph や test 関連 knowledge をチームで共有するために、最低限必要な機能です。
+
+| Must requirement | 内容 | 採用する仕組み |
+|---|---|---|
+| 正本の明確化 | どの情報が authoritative かを一意にする | Repository versioned files |
+| Version 対応 | Knowledge がどの source state に対応するか記録する | manifest / source digest / commit history |
+| 更新・差分管理 | 変更内容を確認し、review できる | branch / commit / Pull Request |
+| Conflict 管理 | 並行変更を検出し、artifact 種別に応じて解決する | Git + regeneration rule |
+| Freshness / integrity | stale、missing、broken artifact を検出する | deterministic generator + CI |
+| 人向け確認 | チームメンバーが内容を閲覧・確認できる | GitHub Wiki |
+| Agent / Tool 参照 | Copilot や script が必要な knowledge を取得できる | Repository context + query tool |
+| Access control | Repository と同じ権限境界で保護する | Repository permission / branch rule |
+| Traceability | 誰が、何を、なぜ変更したか追跡する | commit / Pull Request / CI result |
+| Size policy | Repository に置くものと外部保存するものを分ける | threshold + manifest / snapshot pointer |
+
+Must の最小構成:
+
+```text
+Repository Knowledge Pack
++ Git / Pull Request
 + GitHub Actions
 + GitHub Wiki
 + Issue feedback
 ```
 
-利用方法:
+---
 
-1. Repository に knowledge を保存
-2. Pull Request で変更・review
-3. CI で freshness / integrity を確認
-4. merge 後に Wiki へ publish
-5. Wiki で確認した問題を Issue に登録
+### 3.2 Nice to Have
 
-これは本 Project の基本構成です。
+要件に応じて追加する機能です。
 
-### 3.2 Copilot に knowledge を使った質問をさせる
+| Nice-to-have requirement | 目的 | 追加する仕組み |
+|---|---|---|
+| Copilot 用 curated context | 複数 document をまとめて質問する | Copilot Spaces |
+| Agent による作業自動化 | test generation、knowledge update、validation | Custom Agent / Skill / Hook |
+| 実行経緯の確認 | Agent の command、tool、変更理由を見る | Agent Session |
+| 高度な可視化 | interactive graph、検索、filter | GitHub Pages |
+| 大規模 graph query | traversal、cross-repository query | external GraphDB + MCP |
+| Immutable snapshot | 特定時点の graph / report を配布する | Release assets |
+| 一時的 test result | CI run ごとの report を保持する | Actions Artifacts |
+| 厳格な承認 | path owner と required approval を強制する | CODEOWNERS / Rulesets |
 
-```text
-基本構成
-+ Copilot Spaces
-```
+Nice to Have は、Must の Source of Truth と変更管理を置き換えません。
 
-利用方法:
+---
 
-1. Source of Truth は Repository に維持
-2. 重要 document、Issue、Pull Request を Space に追加
-3. Space の instructions で利用目的を限定
-4. Copilot Chat でテーマ単位の問答に利用
+## 4. 共有対象ごとの保存方針
 
-Space は knowledge のコピー先ではなく、Copilot 向けの selection / organization layer として扱います。
+| 共有対象 | 推奨保存先 | 理由 |
+|---|---|---|
+| Test code | Repository | source と同じ branch / PR で管理する必要がある |
+| Test policy / domain rule | Repository curated files + Wiki mirror | review 可能な正本と人向け表示が必要 |
+| Code graph（小・中規模） | Repository artifact + manifest | source version と一体管理できる |
+| Code graph（大規模） | External GraphDB / object storage + Repository manifest | Repository size と query 性能を分離する |
+| Module / test-impact summary | Repository generated Markdown + Wiki | Agent retrieval と人向け確認の両方に使う |
+| Test execution result | Actions Artifacts、必要なら外部 test DB | run ごとに大量発生し、source history に常設しない |
+| Coverage summary / quality trend | Repository summary または外部 test DB | 長期比較要件に応じて選択する |
+| Agent execution history | Agent Session | provenance 用。knowledge の正本にはしない |
 
-### 3.3 Agent に test generation / knowledge update を行わせる
+---
 
-```text
-基本構成
-+ Custom Agent
-+ Agent Skill
-+ Hook
-+ Agent Session
-```
+## 5. 機能の組み合わせ方
 
-利用方法:
+### 5.1 標準構成: Knowledge を共有し、人が確認する
 
-1. User が Agent task を開始
-2. Hook が freshness を確認
-3. Skill が graph slice と knowledge を取得
-4. Agent が branch 上で変更
-5. Agent が `make test` / `make check` を実行
-6. Agent が Pull Request を作成
-7. Human が review / merge
-8. Wiki が更新
-
-Source of Truth と approval rule は Agent 導入後も変更しません。
-
-### 3.4 Graph を見やすく可視化する
+Must を満たす基本構成です。
 
 ```text
-基本構成
-+ GitHub Pages
+Source code / tests
+        ↓
+Knowledge generator
+        ↓
+Repository Knowledge Pack
+        ↓
+Pull Request + CI + review
+        ↓ merge
+        ├── Copilot / script が参照
+        └── Wiki へ一方向同期
+                     ↓
+               Issue feedback
 ```
 
-Wiki では module summary と主要 diagram を表示し、Pages では検索・filter・interactive graph を提供します。
+構成要素:
+
+- Repository versioned files
+- Git / Pull Request
+- GitHub Actions
+- GitHub Wiki
+- Issue Form
+
+これを本 Project の標準構成とします。
+
+---
+
+### 5.2 Copilot 問答を追加する
+
+標準構成に Spaces を追加します。
+
+```text
+Repository Source of Truth
+        ↓ selected resources
+Copilot Space
+        ↓
+Copilot Chat / onboarding / task-specific Q&A
+```
+
+適用条件:
+
+- 複数 file、Issue、Pull Request をテーマ別にまとめたい
+- 利用者ごとに探す負荷を減らしたい
+- Copilot に共通 instructions を与えたい
+
+Space は Repository の代替ではありません。
+
+---
+
+### 5.3 Agent に test generation / knowledge update を行わせる
+
+標準構成に Agent layer を追加します。
+
+```text
+Human starts Agent task
+        ↓
+Agent Session starts
+        ↓
+sessionStart freshness check
+        ↓
+Repository knowledge / graph slice を取得
+        ↓
+branch 上で test / knowledge を変更
+        ↓
+make test / make check
+        ↓
+Pull Request
+        ↓
+human review / merge
+        ↓
+Wiki refresh
+```
+
+追加する構成要素:
+
+- Custom Agent
+- Agent Skill
+- Hook
+- Agent Session
+
+Source of Truth、review、merge rule は Agent 導入後も変更しません。
+
+---
+
+### 5.4 Graph を高度に可視化する
+
+標準構成に Pages を追加します。
 
 ```text
 Repository graph / compact view
-        ↓ build
+        ↓ static build
 GitHub Pages
-        = rich visualization
+        = search / filter / interactive graph
 ```
 
-### 3.5 大規模 graph を Agent が query する
+Wiki には overview と主要 diagram を置き、Pages は詳細 visualization を担当します。
+
+---
+
+### 5.5 大規模 graph を Agent が query する
 
 ```text
 Repository
@@ -282,22 +400,20 @@ External GraphDB / object storage
 └── complete graph
 
 Copilot Agent
-└── MCP 経由で query
+└── MCP 経由で必要な subgraph を取得
 ```
 
-この構成を採用する条件:
+適用条件:
 
 - graph が Repository に収まりにくい
 - update frequency が高い
 - 複数 Repository を横断する
-- traversal / path query が必要
+- path / traversal query が必要
 - Agent が必要な subgraph だけ取得する必要がある
-
-GitHub 内だけで任意の code graph を常時 traversal query する汎用 GraphDB を構成するのではなく、Repository に version pointer を置き、外部 GraphDB と MCP を組み合わせます。
 
 ---
 
-## 4. 推奨 Architecture
+## 6. 推奨 Architecture
 
 ```text
                           Human
@@ -314,9 +430,9 @@ Source code ──→ Knowledge generator ──→ Repository Knowledge Pack
                                            ├── Pull Request / review
                                            ├── CI freshness / integrity
                                            ├── Copilot repository context
-                                           ├── Copilot Spaces source
-                                           └── Wiki / Pages publish
-                                                        
+                                           ├── optional Copilot Space
+                                           └── Wiki / optional Pages publish
+
 User starts task
       ↓
 Copilot Agent Session
@@ -350,7 +466,7 @@ Wiki / Pages refresh
 
 ---
 
-## 5. Repository 内の保存構成
+## 7. Repository 内の保存構成
 
 ```text
 repository/
@@ -393,7 +509,7 @@ repository/
 
 ---
 
-## 6. Version と鮮度
+## 8. Version と鮮度
 
 Knowledge Pack は machine-readable manifest を持ちます。
 
@@ -427,9 +543,9 @@ Status:
 
 ---
 
-## 7. 更新 Workflow
+## 9. 更新 Workflow
 
-### 7.1 Source code を変更する
+### 9.1 Source code を変更する
 
 ```text
 Human / Agent
@@ -453,7 +569,7 @@ Wiki publish
 
 原則として source change と影響を受ける knowledge を同じ Pull Request に含めます。
 
-### 7.2 Curated knowledge を変更する
+### 9.2 Curated knowledge を変更する
 
 ```text
 Human / Agent proposal
@@ -471,7 +587,7 @@ Wiki publish
 
 Generator は curated knowledge を上書きしません。
 
-### 7.3 Generator を変更する
+### 9.3 Generator を変更する
 
 同じ Pull Request に次を含めます。
 
@@ -485,7 +601,7 @@ CI は同じ input から同じ logical output が得られることを確認し
 
 ---
 
-## 8. Conflict 解決
+## 10. Conflict 解決
 
 Git は conflict の検出と履歴管理を行います。解決方法は artifact 種別で分けます。
 
@@ -512,9 +628,9 @@ Compressed graph や binary artifact を conflict editor で直接修正しま�
 
 ---
 
-## 9. Wiki 更新・同期
+## 11. Wiki 更新・同期
 
-### 9.1 同期方向
+### 11.1 同期方向
 
 ```text
 Repository → Wiki
@@ -534,7 +650,7 @@ Repository change
 Wiki refresh
 ```
 
-### 9.2 Managed page と Manual page
+### 11.2 Managed page と Manual page
 
 | Page | 管理方法 |
 |---|---|
@@ -543,21 +659,7 @@ Wiki refresh
 
 Manual page は meeting note や一時的な説明に使えますが、Agent の正式な knowledge source にはしません。
 
-### 9.3 Page metadata
-
-Managed page には次を表示します。
-
-```markdown
-> **管理方式:** Repository から自動同期  
-> **Source repository:** `owner/repository`  
-> **Published from commit:** `abcdef1`  
-> **Source digest:** `sha256:...`  
-> **Generator version:** `1.1.0`  
-> **Status:** CURRENT  
-> **修正方法:** Wiki を直接編集せず Issue または Pull Request を作成してください。
-```
-
-### 9.4 Publish workflow
+### 11.3 Publish workflow
 
 ```text
 1. develop を checkout
@@ -577,13 +679,11 @@ concurrency:
   cancel-in-progress: true
 ```
 
-これにより、古い source commit の publish が新しい内容を後から上書きすることを防ぎます。
-
 ---
 
-## 10. Agent 利用時の Workflow
+## 12. Agent 利用時の Workflow
 
-### 10.1 Agent を使用しない場合
+### 12.1 Agent を使用しない場合
 
 ```text
 Human
@@ -596,7 +696,7 @@ Human
   ↓ Wiki publish
 ```
 
-### 10.2 Agent を使用する場合
+### 12.2 Agent を使用する場合
 
 ```text
 Human starts Agent task
@@ -634,7 +734,7 @@ Agent の情報優先順位:
 5. Space / Wiki / Issue / PR / Session history
 ```
 
-### 10.3 Agent Pull Request の provenance
+### 12.3 Agent Pull Request の provenance
 
 ```markdown
 ## Knowledge provenance
@@ -656,7 +756,7 @@ Agent の情報優先順位:
 
 ---
 
-## 11. 本 Demo での採用範囲
+## 13. 本 Demo での採用判断
 
 | 機能 | 現在の扱い |
 |---|---|
@@ -669,25 +769,9 @@ Agent の情報優先順位:
 | GitHub Pages | 未採用。interactive graph / search が必要な場合に追加 |
 | External GraphDB / MCP | 未採用。graph size と query 要件で判断 |
 
-現在の標準 workflow:
-
-```text
-Repository Knowledge Pack
-        ↓ Pull Request / CI
-merge to develop
-        ↓
-Wiki mirror
-
-必要に応じて:
-- Copilot Spaces を consumption view として追加
-- Agent を execution layer として追加
-- Pages を visualization layer として追加
-- External GraphDB + MCP を large graph query layer として追加
-```
-
 ---
 
-## 12. 運用ルール
+## 14. 運用ルール
 
 1. Source of Truth は Repository に置く
 2. Generated knowledge を直接編集しない
@@ -702,7 +786,7 @@ Wiki mirror
 
 ---
 
-## 13. 公式仕様参照
+## 15. 公式仕様参照
 
 - [About wikis](https://docs.github.com/en/communities/documenting-your-project-with-wikis/about-wikis)
 - [Adding or editing wiki pages](https://docs.github.com/en/communities/documenting-your-project-with-wikis/adding-or-editing-wiki-pages)
