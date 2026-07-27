@@ -2,15 +2,15 @@
 
 [English version](wiki.md)
 
-このリポジトリでは、共有プロジェクト knowledge の Source of Truth を Repository 内の versioned files に置き、GitHub Wiki を人向けの閲覧・確認・feedback 画面として利用します。
+このリポジトリでは、共有プロジェクト知識の正本を Repository 内の版管理対象ファイルに置き、GitHub Wiki を人向けの閲覧・確認・feedback 画面として利用します。
 
 Wiki:
 
 <https://github.com/tkhjp/copilot-agent-knowledge-demo/wiki>
 
-共有 Knowledge 全体の設計、GitHub Wiki、Copilot Agents、Spaces、Pull Request、Actions、Issues、Discussions、Projects、Pages、Releases、LFS、Packages、CodeQL、MCP などの役割分担は、次を参照してください。
+共有知識全体の保存、更新、競合解決、Spaces、Agent 利用については、次を参照してください。
 
-- [GitHub 機能一覧と目的別の共有 Knowledge 編成設計](shared-project-knowledge-management-design.ja.md)
+- [共有プロジェクト知識の管理・利用アーキテクチャ](shared-project-knowledge-management-design.ja.md)
 
 ---
 
@@ -22,19 +22,19 @@ Wiki は次の用途を想定しています。
 - 新規参加者の onboarding
 - system overview の確認
 - module responsibility、dependency、test impact の確認
-- curated domain rule / testing policy の共有
+- domain rule / testing policy の共有
 - source commit、source digest、generator version、status の確認
-- Repository file、Issue、Pull Request、Discussion への navigation
+- Repository file、Issue、Pull Request への navigation
 - Agent が作成した変更内容を人が理解するための補助画面
 
 Wiki は Agent の第一優先 context ではなく、knowledge の正本でもありません。
 
 ```text
-Repository Knowledge Pack
-    = Source of Truth
+Repository 内知識パック
+    = 正本
 
 GitHub Wiki
-    = human-facing presentation / confirmation layer
+    = 人向けの派生表示
 ```
 
 ---
@@ -43,24 +43,24 @@ GitHub Wiki
 
 | 機能 | Wiki 運用における役割 |
 |---|---|
-| Repository files | Wiki に表示する content の正本 |
-| Git branch / commit | version と変更履歴 |
-| Pull Request / review | content change の確認・承認 |
-| CODEOWNERS / Rulesets | owner review と merge rule の enforcement |
+| Repository files | Wiki に表示する内容の正本 |
+| Git branch / commit | 版と変更履歴 |
+| Pull Request / review | 内容変更の確認・承認 |
+| CODEOWNERS / Rulesets | owner review と merge rule の強制 |
 | GitHub Actions | Wiki page の生成・同期 |
 | GitHub Wiki | 人向け閲覧・確認・navigation |
 | Issues | 誤り、stale、更新要求の受付 |
 | Discussions | 方針相談、Q&A、複数案の議論 |
 | Projects | feedback / update backlog の進捗管理 |
-| Copilot Agent | Repository knowledge を読んで変更案を作成 |
-| Agent Session | Agent の prompt、command、変更理由、validation の履歴 |
+| Copilot Agent | Repository knowledge を読み、変更案を作成 |
+| Agent Session | Agent の prompt、command、変更理由、検証履歴 |
 | GitHub Pages | Wiki より高度な検索・可視化が必要な場合の拡張先 |
 
 ---
 
 ## 3. Agent が優先して読む情報
 
-Agent は同一 Repository の versioned files を権威ある knowledge として使用します。
+Agent は同一 Repository の版管理対象ファイルを正本として使用します。
 
 ```text
 docs/agent-knowledge/generated/
@@ -72,9 +72,9 @@ Knowledge の優先順位:
 
 ```text
 現在 branch の source code
-  > 現在 branch 用 runtime knowledge
-  > committed generated knowledge
-  > curated rules
+  > 現在 branch 用の一時知識
+  > commit 済みの自動生成知識
+  > 人が管理するルール
   > Space / Wiki / Issue / PR / Session 履歴
 ```
 
@@ -90,11 +90,11 @@ Wiki page と現在の source code が矛盾する場合、現在の source code
 | 長期共有 knowledge | Repository の mirror として保持 | 適さない |
 | prompt / response | なし | あり |
 | command / tool log | なし | あり |
-| Agent の権威ある情報源 | いいえ | いいえ |
-| 更新元 | Repository Knowledge Pack | 個別の Agent task |
-| 正式な handoff | いいえ | いいえ |
+| Agent の正本 | いいえ | いいえ |
+| 更新元 | Repository 内知識パック | 個別の Agent task |
+| 正式な引継ぎ | いいえ | いいえ |
 
-正式な Agent 間 handoff は次です。
+正式な Agent 間の引継ぎは次です。
 
 ```text
 commit
@@ -112,11 +112,11 @@ Wiki が存在しても Agent Session は作成されません。Session を作�
 
 ---
 
-## 5. Managed page と Manual page
+## 5. 自動管理 page と手動 page
 
 Wiki page を2種類に分けます。
 
-### 5.1 Managed page
+### 5.1 自動管理 page
 
 Repository から GitHub Actions により生成・同期される page です。
 
@@ -138,18 +138,18 @@ Repository から GitHub Actions により生成・同期される page です�
 - Wiki 上で直接編集しない
 - source Repository の file を変更する
 - Pull Request と review を経由する
-- merge 後に workflow が再publishする
+- merge 後に workflow が再公開する
 
-### 5.2 Manual page
+### 5.2 手動 page
 
 利用者が Wiki 上で作成する、workflow 管理外の page です。
 
 想定用途:
 
 - meeting note
-- temporary discussion memo
+- 一時的な検討メモ
 - onboarding note
-- human-only FAQ
+- 人向け FAQ
 
 規則:
 
@@ -157,11 +157,11 @@ Repository から GitHub Actions により生成・同期される page です�
 - Agent の正式な knowledge source にはしない
 - project rule や確定 knowledge になった内容は Repository file に移し、Pull Request で管理する
 
-Workflow は `wiki/.managed-pages` に管理対象 page の一覧を記録し、前回の managed page のみを置換します。
+Workflow は `wiki/.managed-pages` に自動管理 page の一覧を記録し、前回の自動管理 page のみを置換します。
 
 ---
 
-## 6. 自動公開 Workflow
+## 6. 自動公開 workflow
 
 次の workflow が Wiki を更新します。
 
@@ -199,21 +199,21 @@ Actions
 3. dist/wiki/*.md を生成
 4. <repository>.wiki.git を clone
 5. 前回の .managed-pages を読み取る
-6. managed page のみ削除・置換
-7. manual page を保持
+6. 自動管理 page のみ削除・置換
+7. 手動 page を保持
 8. 新しい .managed-pages を保存
 9. Wiki commit を作成
 10. Wiki master branch に push
 ```
 
 ```text
-Repository Knowledge Pack
+Repository 内知識パック
         ↓
 make wiki-export
         ↓
 dist/wiki/*.md
         ↓
-managed page update
+自動管理 page を更新
         ↓
 <repository>.wiki.git
         ↓
@@ -234,10 +234,10 @@ concurrency:
 
 ## 8. Wiki page に表示する metadata
 
-Managed page の先頭には、次の情報を表示することを推奨します。
+自動管理 page の先頭には、次の情報を表示することを推奨します。
 
 ```markdown
-> **管理方式:** Repository から自動同期される managed page
+> **管理方式:** Repository から自動同期される page
 > **Source repository:** `owner/repository`
 > **Published from commit:** `abcdef1`
 > **Source digest:** `sha256:...`
@@ -251,7 +251,7 @@ Managed page の先頭には、次の情報を表示することを推奨しま�
 
 ---
 
-## 9. Feedback Workflow
+## 9. Feedback の流れ
 
 Wiki content の同期は一方向ですが、利用者の feedback は Repository に戻します。
 
@@ -308,11 +308,11 @@ Project には status、owner、priority、target date を置き、knowledge 本
 
 ---
 
-## 10. Published pages
+## 10. 公開 page
 
 - Home
 - Sidebar navigation
-- GitHub 機能一覧と目的別の共有 Knowledge 編成設計
+- 共有プロジェクト知識の管理・利用アーキテクチャ
 - Agent Session Guide
 - Wiki Operation Guide
 - Generated System Overview
@@ -325,7 +325,7 @@ Project には status、owner、priority、target date を置き、knowledge 本
 
 ## 11. 編集ルール
 
-### Generated page
+### 自動生成 page
 
 直接編集しないでください。次回の mirror workflow で上書きされます。
 
@@ -337,9 +337,9 @@ tools/knowledge/
 source code / tests
 ```
 
-Generated knowledge が誤っている場合、source code または generator の Issue として扱います。
+自動生成 knowledge が誤っている場合、source code または generator の Issue として扱います。
 
-### Curated page
+### 人手管理 page
 
 Wiki 上で直接編集せず、Repository 側を変更して Pull Request で review してください。
 
@@ -349,17 +349,15 @@ Wiki 上で直接編集せず、Repository 側を変更して Pull Request で r
 docs/agent-knowledge/curated/
 ```
 
-Curated policy change には domain owner / test owner の review を推奨します。
+Policy change には domain owner / test owner の review を推奨します。
 
-### Manual page
+### 手動 page
 
-Workflow 管理外であることを明示してください。
-
-確定 knowledge になった場合は Repository の versioned file に移します。
+Workflow 管理外であることを明示してください。確定 knowledge になった場合は Repository の版管理対象 file に移します。
 
 ---
 
-## 12. Troubleshooting
+## 12. トラブルシューティング
 
 ### Wiki Repository が見つからない
 
@@ -367,35 +365,29 @@ GitHub Wiki を enable しただけでは `.wiki.git` が作成されない場�
 
 ### Workflow は成功したが内容が変わらない
 
-Repository knowledge と exported Wiki content が同じ場合、空 commit は作成されません。
+Repository knowledge と出力した Wiki content が同じ場合、空 commit は作成されません。
 
-### Manual page が消えた
+### 手動 page が消えた
 
-現在の workflow は `.managed-pages` に記録した managed page のみを削除します。古い workflow が manual page を削除した場合は Wiki history から復元してください。
+現在の workflow は `.managed-pages` に記録した自動管理 page のみを削除します。古い workflow が手動 page を削除した場合は Wiki history から復元してください。
 
 ### Wiki と code が矛盾する
 
-現在の code を正としてください。Wiki は downstream mirror です。
+現在の source code と Repository knowledge を正としてください。Wiki は派生表示です。
 
 ### Agent が Wiki を読んでいない
 
-正常な設計です。Agent は Repository 内の versioned knowledge を優先します。Wiki は人向け portal です。
-
-### Wiki publish が失敗した
-
-Repository knowledge は壊れません。Wiki は downstream view なので、workflow を最新 `develop` から再実行します。
+正常な設計です。Agent は Repository 内の版管理対象 knowledge を優先します。Wiki は人向けの portal です。
 
 ---
 
-## 13. 共有する際の推奨案内
+## 13. チームへの案内順序
 
-Repository をチームメンバーに共有するときは、次の順で案内してください。
-
-1. [GitHub 機能一覧と目的別の共有 Knowledge 編成設計](shared-project-knowledge-management-design.ja.md)
-2. GitHub Wiki
+1. [共有プロジェクト知識の管理・利用アーキテクチャ](shared-project-knowledge-management-design.ja.md)
+2. [日本語 README](../README.ja.md)
 3. [Agents タブ デモ手順](agents-tab-demo.ja.md)
-4. [日本語 README](../README.ja.md)
+4. GitHub Wiki
 5. `docs/architecture.md`
-6. `.github/agents/`、`.github/skills/`、`.github/hooks/`
+6. `.github/agents/` と `.github/skills/`
 
-最初に GitHub 各機能の役割を理解し、その後 Wiki で knowledge を確認し、最後に `test-generator` を使って共有 Agent Session を作成します。
+最初の実習では `test-generator` を使い、共有 Agent Session を作成します。
