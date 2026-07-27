@@ -21,3 +21,12 @@ jobs:
 
       - name: Validate tests and agent knowledge
         run: make check
+
+      - name: Validate Wiki export
+        shell: bash
+        run: |
+          set -euo pipefail
+          make wiki-export
+          test -f dist/wiki/Shared-Project-Knowledge-Management-Design-JA.md
+          test -f dist/wiki/Home.md
+          test -f dist/wiki/_Sidebar.md

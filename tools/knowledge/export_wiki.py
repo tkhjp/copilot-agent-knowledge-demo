@@ -8,6 +8,7 @@ from .project import repository_root
 
 
 PAGE_MAP = {
+    "docs/shared-project-knowledge-management-design.ja.md": "Shared-Project-Knowledge-Management-Design-JA.md",
     "docs/agents-tab-demo.ja.md": "Agent-Session-Guide-JA.md",
     "docs/wiki.ja.md": "Wiki-Operation-Guide-JA.md",
     "docs/agent-knowledge/generated/system-overview.md": "Generated-System-Overview.md",
@@ -32,13 +33,16 @@ def export(root: Path, output: Path) -> None:
             [
                 "# Copilot Agent Knowledge Demo",
                 "",
-                "この Wiki は、リポジトリ内の Agent Knowledge Pack を人向けに閲覧するためのミラーです。",
-                "Agent は Wiki ではなく、同一リポジトリの versioned knowledge files と現在の source code を優先します。",
+                "この Wiki は、リポジトリ内の Agent Knowledge Pack を人向けに閲覧・確認するためのミラーです。",
+                "Knowledge の正本は同一リポジトリ内の versioned files であり、Wiki は downstream view です。",
                 "",
-                "## 最初に確認すること",
+                "## 共有 Knowledge の管理設計",
                 "",
-                "Custom Agent の定義を配置しただけでは Agent Session は作成されません。",
-                "GitHub の **Agents** タブから実際の cloud agent task を開始すると、初めて **Agents > All sessions** に共有 Session が作成されます。",
+                "- [[Shared Project Knowledge Management Design JA]]",
+                "",
+                "この設計書では、code graph などの共有前提 knowledge をどこに置くか、Git commit / Pull Request でどう更新・競合解決するか、Wiki をどのように同期するか、Agent 導入後に workflow がどう変わるかを説明します。",
+                "",
+                "## 利用ガイド",
                 "",
                 "- [[Agent Session Guide JA]]",
                 "- [[Wiki Operation Guide JA]]",
@@ -54,14 +58,15 @@ def export(root: Path, output: Path) -> None:
                 "## 役割分担",
                 "",
                 "```text",
-                "Repository Knowledge Pack = Agent の共有・再利用可能な知識",
+                "Repository Knowledge Pack = Source of Truth / Agent が参照する知識",
+                "Git commit / Pull Request = 更新・競合解決・review",
+                "GitHub Wiki              = 人向け可視化・確認画面",
                 "Agent Session            = prompt、command、変更理由、監査証跡",
-                "GitHub Wiki              = 人向け閲覧、教育、ナビゲーション",
                 "```",
                 "",
                 "## Governance",
                 "",
-                "Generated pages は自動化により上書きされます。Curated pages も Wiki で直接編集せず、main repository の Pull Request で管理してください。",
+                "Managed Wiki pages は自動化により上書きされます。修正は Wiki を直接編集せず、main repository の Issue または Pull Request で行ってください。",
                 "",
             ]
         ),
@@ -71,6 +76,7 @@ def export(root: Path, output: Path) -> None:
         "\n".join(
             [
                 "- [[Home]]",
+                "- [[Shared Project Knowledge Management Design JA]]",
                 "- [[Agent Session Guide JA]]",
                 "- [[Wiki Operation Guide JA]]",
                 "- [[Generated System Overview]]",
