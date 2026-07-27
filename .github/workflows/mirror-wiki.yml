@@ -7,7 +7,6 @@ on:
       - develop
     paths:
       - "docs/agent-knowledge/**"
-      - "docs/github-native-knowledge-capability-catalog.ja.md"
       - "docs/shared-project-knowledge-management-design.ja.md"
       - "docs/agents-tab-demo.ja.md"
       - "docs/wiki.ja.md"

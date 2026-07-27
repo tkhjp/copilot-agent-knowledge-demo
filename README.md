@@ -4,8 +4,7 @@
 
 ## ドキュメント
 
-- **[GitHub ネイティブ機能カタログ — 共有 Project Knowledge の観点](docs/github-native-knowledge-capability-catalog.ja.md)**
-- **[GitHub 機能を用いた共有 Knowledge の編成・運用設計](docs/shared-project-knowledge-management-design.ja.md)**
+- **[共有 Project Knowledge の管理・利用設計（日本語）](docs/shared-project-knowledge-management-design.ja.md)**
 - **[日本語の詳細 README](README.ja.md)**
 - **[GitHub Agents タブ実行ガイド（日本語）](docs/agents-tab-demo.ja.md)**
 - **[GitHub Wiki 運用ガイド（日本語）](docs/wiki.ja.md)**
@@ -16,7 +15,13 @@
 
 ## この Repository の位置付け
 
-本 Repository は、あるプロジェクトで共有前提となる knowledge（例: code graph）について、GitHub Wiki、Copilot Agents、Spaces、Repository files、Pull Request、Actions、Issues、Discussions、Projects、Pages、Releases、LFS、Packages、CodeQL、Models、Codespaces、Agentic Workflows、MCP などの GitHub 機能をどの目的で組み合わせるかを示す reference implementation です。
+本 Repository は、あるプロジェクトで共有前提となる knowledge（例: code graph）について、主に次の GitHub 機能をどのように組み合わせるかを示す reference implementation です。
+
+- Repository files + Git / Pull Request
+- GitHub Wiki
+- Copilot Spaces
+- Copilot Agent / Session
+- 必要に応じて GitHub Pages または external GraphDB + MCP
 
 基本構成:
 
@@ -24,20 +29,20 @@
 Repository knowledge files
         = Source of Truth
 
-Git branch / commit / Pull Request / CI / Ruleset
+Git branch / commit / Pull Request / CI
         = 更新・競合検出・review・承認
 
-GitHub Wiki / Pages
-        = 人向けの可視化・確認画面
+GitHub Wiki
+        = 人向けの可視化・確認・feedback 画面
 
-Issues / Discussions / Projects
-        = feedback・議論・進捗管理
+Copilot Spaces
+        = Copilot 問答用の curated context
 
-GitHub Copilot Agent / Skills / Hooks / MCP
-        = knowledge の利用・変更提案・外部データ接続
+Copilot Agent / Session
+        = knowledge の利用・変更提案・実行履歴
 ```
 
-各 GitHub 機能の「できること・できないこと」は[機能カタログ](docs/github-native-knowledge-capability-catalog.ja.md)、目的別の組み合わせ方、更新、conflict 解決、Wiki 同期、Agent 導入後の workflow は[編成・運用設計](docs/shared-project-knowledge-management-design.ja.md)にまとめています。
+具体的な保存場所、更新方法、conflict 解決、Wiki 同期、Spaces の位置付け、Agent 導入後の workflow は、[共有 Project Knowledge の管理・利用設計](docs/shared-project-knowledge-management-design.ja.md)にまとめています。
 
 ## 最初に理解すべき点
 
@@ -84,7 +89,7 @@ GitHub Wiki mirror
       > 現在 branch 用 runtime knowledge
       > committed generated knowledge
       > curated rules
-      > Wiki / Issue / PR / Session 履歴
+      > Space / Wiki / Issue / PR / Session 履歴
 ```
 
 ## 実装済み機能
@@ -152,6 +157,7 @@ Session 作成後は次を確認します。
 | Raw code graph | 機械的な静的関係 | はい |
 | Agent Knowledge Pack | 再利用可能な共有知識 | はい |
 | Branch runtime knowledge | 現在 branch 用の最新投影 | はい |
+| Copilot Spaces | Copilot 用 curated context | いいえ |
 | Agent Session | prompt、command、変更理由、監査証跡 | いいえ |
 | GitHub Wiki | 人向け閲覧、教育、ナビゲーション | いいえ |
 
@@ -163,7 +169,7 @@ Wiki:
 
 <https://github.com/tkhjp/copilot-agent-knowledge-demo/wiki>
 
-Wiki は人向けの downstream mirror です。Agent は同一リポジトリ内の versioned knowledge files を優先します。
+Wiki は人向けの downstream mirror です。Agent は同一 Repository 内の versioned knowledge files を優先します。
 
 ## License
 
