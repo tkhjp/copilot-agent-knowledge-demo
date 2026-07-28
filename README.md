@@ -2,7 +2,9 @@
 
 このリポジトリは、テスト生成を題材として、**Repository に紐づく共有プロジェクト知識を版管理・レビュー・可視化し、GitHub Copilot Agent から利用するための参考実装**を提供します。
 
-初期 Code Graph は LLM で生成せず、Tree-sitter と言語別 resolver から `functions / classes / imports / calls / inheritance` を抽出する決定的な生成物として扱います。Agent Skill は生成 command の起動と利用手順を担い、graph の内容自体は source code と generator から再生成します。
+実案件で想定する初期 Code Graph は LLM で生成せず、Tree-sitter と言語別 resolver から `functions / classes / imports / calls / inheritance` を抽出する決定的な生成物です。Agent Skill は生成 command の起動と利用手順を担い、graph の内容自体は source code と generator から再生成します。
+
+> **実装状況:** この Repository の現行 generator は、アーキテクチャと運用を検証するための簡易 Python AST 実装です。Tree-sitter / 言語別 resolver への置換は本番想定の設計対象であり、現時点の Demo がその実装を完了しているという意味ではありません。
 
 ## ドキュメント
 
@@ -74,7 +76,8 @@ GitHub Actions の workflow run、通常の Pull Request、API 経由の commit 
 ```text
 現在の source code
         ↓
-Tree-sitter による再生成可能な構造 Code Graph
+再生成可能な構造 Code Graph
+（現行 Demo は Python AST、本番想定は Tree-sitter + resolver）
         ↓
 Agent 向け知識パック
         ↓
@@ -101,7 +104,7 @@ GitHub Wiki mirror
 
 | 対象 | 実装 |
 |---|---|
-| Raw code graph | `artifacts/codegraph/` |
+| Raw code graph | `artifacts/codegraph/`（現行は簡易 Python AST 実装） |
 | Agent 向け共有知識 | `docs/agent-knowledge/generated/` |
 | 人が管理するルール | `docs/agent-knowledge/curated/` |
 | Branch 用の一時 graph / 知識 | `.agent-runtime/` |
