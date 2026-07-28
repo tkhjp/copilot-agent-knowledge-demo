@@ -27,9 +27,12 @@ jobs:
         run: |
           set -euo pipefail
           make wiki-export
+          test -f dist/wiki/Tree-Sitter-Code-Graph-Update-Sync-Design-JA.md
           test -f dist/wiki/Shared-Project-Knowledge-Management-Design-JA.md
           test -f dist/wiki/Home.md
           test -f dist/wiki/_Sidebar.md
+          grep -q 'Tree Sitter Code Graph Update Sync Design JA' dist/wiki/Home.md
+          grep -q 'Tree Sitter Code Graph Update Sync Design JA' dist/wiki/_Sidebar.md
           grep -q 'Shared Project Knowledge Management Design JA' dist/wiki/Home.md
           grep -q 'Shared Project Knowledge Management Design JA' dist/wiki/_Sidebar.md
 
