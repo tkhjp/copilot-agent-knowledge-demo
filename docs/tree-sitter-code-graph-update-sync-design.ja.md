@@ -909,6 +909,10 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Capture exact PR source SHA
+        run: echo "SOURCE_SHA=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_ENV"
 
       - name: Generate exact PR graph
         run: |
@@ -980,17 +984,21 @@ jobs:
             --graph .agent-runtime/staging-codegraph
 
       - name: Verify this is still current HEAD
+        id: current
         env:
           SOURCE_SHA: ${{ github.sha }}
         run: |
           git fetch origin develop
           CURRENT_HEAD="$(git rev-parse origin/develop)"
-          if [ "$CURRENT_HEAD" != "$SOURCE_SHA" ]; then
-            echo "Newer commit exists. Skip latest publication."
-            exit 78
+          if [ "$CURRENT_HEAD" = "$SOURCE_SHA" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "Newer commit exists. Keep the snapshot result, but do not update the shared latest graph."
           fi
 
       - name: Publish repository snapshot
+        if: steps.current.outputs.publish == 'true'
         run: |
           rm -rf artifacts/codegraph
           cp -R .agent-runtime/staging-codegraph artifacts/codegraph
