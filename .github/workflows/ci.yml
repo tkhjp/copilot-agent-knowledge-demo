@@ -5,97 +5,9 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch-tree-sitter-design:
-    if: github.event_name == 'pull_request' && github.head_ref == 'docs/tree-sitter-graph-update-sync'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out pull request branch
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 0
-
-      - name: Apply documentation corrections
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("docs/tree-sitter-code-graph-update-sync-design.ja.md")
-          text = path.read_text(encoding="utf-8")
-          text = text.replace("-主要 module / dependency の概要", "- 主要 module / dependency の概要")
-          text = text.replace("-新規 parse error がない、または policy 内", "- 新規 parse error がない、または policy 内")
-
-          lines = text.splitlines()
-          pr_expr = "$" + "{{ github.event.pull_request.head.sha }}"
-          sha_expr = "$" + "{{ github.sha }}"
-
-          ref_index = next(
-              i for i, line in enumerate(lines)
-              if "ref:" in line and "github.event.pull_request.head.sha" in line
-          )
-          if ref_index + 1 >= len(lines) or "fetch-depth: 0" not in lines[ref_index + 1]:
-              lines.insert(ref_index + 1, "          fetch-depth: 0")
-
-          generate_index = next(
-              i for i, line in enumerate(lines)
-              if line == "      - name: Generate exact PR graph"
-          )
-          if not any("Capture exact PR source SHA" in line for line in lines):
-              lines[generate_index:generate_index] = [
-                  "      - name: Capture exact PR source SHA",
-                  f'        run: echo "SOURCE_SHA={pr_expr}" >> "$GITHUB_ENV"',
-                  "",
-              ]
-
-          start = next(
-              i for i, line in enumerate(lines)
-              if line == "      - name: Verify this is still current HEAD"
-          )
-          publish = next(
-              i for i, line in enumerate(lines[start + 1 :], start + 1)
-              if line == "      - name: Publish repository snapshot"
-          )
-          run_line = publish + 1
-          if lines[run_line].strip() == "run: |":
-              replacement = [
-                  "      - name: Verify this is still current HEAD",
-                  "        id: current",
-                  "        env:",
-                  f"          SOURCE_SHA: {sha_expr}",
-                  "        run: |",
-                  "          git fetch origin develop",
-                  '          CURRENT_HEAD="$(git rev-parse origin/develop)"',
-                  '          if [ "$CURRENT_HEAD" = "$SOURCE_SHA" ]; then',
-                  '            echo "publish=true" >> "$GITHUB_OUTPUT"',
-                  "          else",
-                  '            echo "publish=false" >> "$GITHUB_OUTPUT"',
-                  '            echo "Newer commit exists. Keep the snapshot result, but do not update the shared latest graph."',
-                  "          fi",
-                  "",
-                  "      - name: Publish repository snapshot",
-                  "        if: steps.current.outputs.publish == 'true'",
-                  "        run: |",
-              ]
-              lines[start : run_line + 1] = replacement
-
-          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-          PY
-
-      - name: Commit corrections
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/tree-sitter-code-graph-update-sync-design.ja.md
-          git diff --cached --quiet && exit 0
-          git commit -m "docs: correct tree-sitter workflow examples"
-          git push origin HEAD:${{ github.head_ref }}
-
   validate:
     runs-on: ubuntu-latest
     steps:
