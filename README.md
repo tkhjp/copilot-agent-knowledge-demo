@@ -2,10 +2,11 @@
 
 このリポジトリは、テスト生成を題材として、**Repository に紐づく共有プロジェクト知識を版管理・レビュー・可視化し、GitHub Copilot Agent から利用するための参考実装**を提供します。
 
-主な対象は code graph、test-impact metadata、testing policy、domain rule です。単なる Agent デモではなく、知識の正本、派生表示、変更管理、Agent 実行を分離した構成を検証します。
+初期 Code Graph は LLM で生成せず、Tree-sitter と言語別 resolver から `functions / classes / imports / calls / inheritance` を抽出する決定的な生成物として扱います。Agent Skill は生成 command の起動と利用手順を担い、graph の内容自体は source code と generator から再生成します。
 
 ## ドキュメント
 
+- **[Tree-sitter 構造 Code Graph の更新・同期設計（日本語）](docs/tree-sitter-code-graph-update-sync-design.ja.md)**
 - **[共有プロジェクト知識の管理・利用アーキテクチャ（日本語）](docs/shared-project-knowledge-management-design.ja.md)**
 - **[日本語の詳細 README](README.ja.md)**
 - **[GitHub Agents タブ実行ガイド（日本語）](docs/agents-tab-demo.ja.md)**
@@ -20,8 +21,11 @@
 本 Repository は、GitHub の各機能を次の責務に分けて組み合わせます。
 
 ```text
+Source code + graph generator + grammar / config
+        = Code Graph を再生成するための正本
+
 Repository 内知識パック
-        = 知識の正本 / 正式な記録元
+        = 版管理された共有情報と graph snapshot
 
 Git branch / commit / Pull Request / CI
         = 更新管理 / 検証 / 競合検出
@@ -39,9 +43,11 @@ Agent Session
         = 実行履歴・追跡情報
 ```
 
+Code Graph は人が直接編集する正本ではなく、source code と generator から生成する派生 snapshot です。Feature branch と Agent workspace では branch-local graph を使い、default branch の shared graph は単一の GitHub Actions workflow が公開します。
+
 必要に応じて、GitHub Pages を高度な表示画面として、external GraphDB + MCP を大規模 graph query の仕組みとして追加します。
 
-保存場所、必須要件・追加要件、情報種別ごとの保存方針、整合性モデル、競合解決、Wiki 公開、Agent 利用時の流れは、[共有プロジェクト知識の管理・利用アーキテクチャ](docs/shared-project-knowledge-management-design.ja.md)にまとめています。
+保存場所、必須要件・追加要件、情報種別ごとの保存方針、整合性モデル、競合解決、Wiki 公開、Agent 利用時の流れは、[共有プロジェクト知識の管理・利用アーキテクチャ](docs/shared-project-knowledge-management-design.ja.md)にまとめています。Code Graph 固有の更新、PR 検証、default branch への公開、複数 Agent の並行実行については、[Tree-sitter 構造 Code Graph の更新・同期設計](docs/tree-sitter-code-graph-update-sync-design.ja.md)を参照してください。
 
 ## 最初に理解すべき点
 
@@ -68,7 +74,7 @@ GitHub Actions の workflow run、通常の Pull Request、API 経由の commit 
 ```text
 現在の source code
         ↓
-再生成可能な code graph
+Tree-sitter による再生成可能な構造 Code Graph
         ↓
 Agent 向け知識パック
         ↓
@@ -81,12 +87,12 @@ Tests / Pull Request / shared Agent Session
 GitHub Wiki mirror
 ```
 
-知識の優先順位:
+情報の優先順位:
 
 ```text
 現在の working tree のソースコード
-      > 現在 branch 用の一時知識
-      > commit 済みの自動生成知識
+      > 現在 branch 用の一時 graph / 一時知識
+      > commit 済みの graph snapshot / 自動生成知識
       > 人が管理するルール
       > Space / Wiki / Issue / PR / Session 履歴
 ```
@@ -98,7 +104,7 @@ GitHub Wiki mirror
 | Raw code graph | `artifacts/codegraph/` |
 | Agent 向け共有知識 | `docs/agent-knowledge/generated/` |
 | 人が管理するルール | `docs/agent-knowledge/curated/` |
-| Branch 用の一時知識 | `.agent-runtime/` |
+| Branch 用の一時 graph / 知識 | `.agent-runtime/` |
 | Custom Agents | `.github/agents/` |
 | Agent Skill | `.github/skills/test-knowledge/` |
 | Session hook | `.github/hooks/knowledge-freshness.json` |
@@ -150,17 +156,18 @@ Session 作成後は次を確認します。
 
 ## Session、Knowledge、Wiki の役割
 
-| 対象 | 役割 | Agent の正本か |
+| 対象 | 役割 | 正本か |
 |---|---|---:|
 | 現在の source code | 現在の実装事実 | はい |
-| Raw code graph | 機械的な静的関係 | はい |
-| Agent 向け知識パック | 再利用可能な共有知識 | はい |
-| Branch 用の一時知識 | 現在 branch 用の最新投影 | はい |
+| Graph generator / grammar / config | Code Graph の生成規則 | はい |
+| Raw code graph | 特定 source state の構造 snapshot | いいえ |
+| Agent 向け知識パック | 再利用可能な共有情報 | 内容による |
+| Branch 用の一時 graph / 知識 | 現在 branch 用の一時投影 | いいえ |
 | Copilot Spaces | Copilot 用の選別済みコンテキスト | いいえ |
 | Agent Session | prompt、command、変更理由、監査証跡 | いいえ |
 | GitHub Wiki | 人向け閲覧、教育、ナビゲーション | いいえ |
 
-正式な Agent 間の引継ぎは Session URL ではなく、commit、branch、Pull Request、Repository 内知識パックで行います。
+正式な Agent 間の引継ぎは Session URL ではなく、commit、branch、Pull Request、manifest、Repository 内知識パックで行います。
 
 ## Wiki
 
@@ -168,7 +175,7 @@ Wiki:
 
 <https://github.com/tkhjp/copilot-agent-knowledge-demo/wiki>
 
-Wiki は人向けの下流 mirror です。Agent は同一 Repository 内の版管理対象知識を優先します。
+Wiki は人向けの下流 mirror です。Agent は同一 Repository 内の版管理対象情報と、現在 branch に対応する graph snapshot を優先します。
 
 ## License
 
