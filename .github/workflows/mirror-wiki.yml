@@ -7,6 +7,7 @@ on:
       - develop
     paths:
       - "docs/agent-knowledge/**"
+      - "docs/tree-sitter-code-graph-update-sync-design.ja.md"
       - "docs/shared-project-knowledge-management-design.ja.md"
       - "docs/agents-tab-demo.ja.md"
       - "docs/wiki.ja.md"
