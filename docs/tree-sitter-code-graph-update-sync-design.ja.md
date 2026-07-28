@@ -806,7 +806,7 @@ Wiki には raw graph 全量を同期しません。
 - generator / grammar version
 - node / edge count
 - parse coverage / error count
--主要 module / dependency の概要
+- 主要 module / dependency の概要
 - graph query tool / dashboard の利用方法
 - feedback Issue への link
 
@@ -846,7 +846,7 @@ Wiki は結果整合です。Repository / manifest が正本であり、Wiki の
 
 - generator command が完了
 - supported source file の parse coverage が基準以上
--新規 parse error がない、または policy 内
+- 新規 parse error がない、または policy 内
 - schema validation 成功
 - duplicate node / edge ID がない
 - dangling edge がない
@@ -913,7 +913,7 @@ jobs:
       - name: Generate exact PR graph
         run: |
           ./tools/codegraph/generate \
-            --source-commit "${GITHUB_SHA}" \
+            --source-commit "${SOURCE_SHA}" \
             --mode full \
             --output .agent-runtime/pr-graph
 
@@ -1003,7 +1003,7 @@ jobs:
           git push
 ```
 
-実装時は `exit 78` を job 成功扱いにする step 制御、または output flag に置き換えます。重要なのは、古い run が latest snapshot を更新しないことです。
+この例では output flag により、古い run を失敗扱いにせず publish step だけを停止します。さらに、head check 後に default branch が更新された場合も、通常の `git push` が non-fast-forward で失敗するため、古い graph commit が新しい source commit を上書きしません。
 
 ---
 
